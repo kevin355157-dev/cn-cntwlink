@@ -77,10 +77,6 @@ This adds only the `cn` subdomain and should not replace `cntwlink.com`.
 
 Podcast audio is intentionally not included in this Pages repo.
 
-Upload audio to Cloudflare R2 later and use:
-
-```text
-audio.cntwlink.com
-```
-
-Then update `data/podcast_episodes.json` with the R2 audio URLs.
+The current live mode is Podcast import/search mode, so keep `audio_url` empty
+in `data/podcast_episodes.json`. Readers should use the episode title to search
+on their preferred Podcast platform.

@@ -809,12 +809,7 @@
                 </div>
 
                 <div id="detail-podcast-local-note" class="mb-12 w-full rounded-sm overflow-hidden shadow-[0_0_30px_rgba(85,121,233,0.05)] border border-[var(--neon-lime)]/30 p-5 text-sm leading-relaxed text-gray-500 bg-white">
-                    本頁已移除外部 Podcast 嵌入播放器。請依節目標題於常用 Podcast 平台搜尋收聽。
-                </div>
-
-                <div id="detail-audio-player-wrap" class="hidden mb-12 w-full rounded-sm overflow-hidden shadow-[0_0_30px_rgba(85,121,233,0.08)] border border-[var(--neon-lime)]/40 p-5 bg-white">
-                    <div class="text-[var(--royal-blue)] text-xs font-black tracking-widest uppercase mb-3">站內收聽 / LISTEN HERE</div>
-                    <audio id="detail-audio-player" class="w-full" controls preload="metadata"></audio>
+                    本頁採用 Podcast 導入模式，不嵌入音檔播放器。請依節目標題於常用 Podcast 平台搜尋收聽。
                 </div>
 
                 <div id="detail-content" class="article-content text-gray-300"></div>
@@ -1104,19 +1099,8 @@
             document.getElementById('detail-title').innerText = item.title;
             document.getElementById('detail-date').innerText = "上線時間：" + (item.date ? String(item.date).substring(0, 10) : '');
 
-            const audioWrap = document.getElementById('detail-audio-player-wrap');
-            const audioPlayer = document.getElementById('detail-audio-player');
             const localNote = document.getElementById('detail-podcast-local-note');
-            if (item.audio_url) {
-                audioPlayer.src = item.audio_url;
-                audioWrap.classList.remove('hidden');
-                localNote.innerText = '本集可於本站直接收聽；播放器只載入音訊資訊，讀者按播放後才下載音檔。';
-            } else {
-                audioPlayer.removeAttribute('src');
-                audioPlayer.load();
-                audioWrap.classList.add('hidden');
-                localNote.innerText = '本集尚未提供站內音訊。請依節目標題於常用 Podcast 平台搜尋收聽。';
-            }
+            localNote.innerText = '本頁採用 Podcast 導入模式，不嵌入音檔播放器。請依節目標題於常用 Podcast 平台搜尋收聽。';
             
             let contentStr = item.content || "<p>尚無詳細內容</p>";
             if (!contentStr.trim().startsWith('<')) {

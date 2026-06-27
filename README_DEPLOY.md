@@ -7,7 +7,6 @@ This folder is the clean deployment package for the China-friendly site.
 - GitHub repository: `cn-cntwlink`
 - Cloudflare Pages project: `cn-cntwlink`
 - Website domain: `cn.cntwlink.com`
-- Podcast audio domain: `audio.cntwlink.com`
 
 ## Cloudflare Pages settings
 
@@ -35,14 +34,8 @@ This folder is the clean deployment package for the China-friendly site.
 
 ## Podcast audio
 
-Do not upload podcast MP3/M4A files into Cloudflare Pages.
+The live site currently uses Podcast import/search mode. Do not upload podcast
+MP3/M4A files into Cloudflare Pages, and do not enable R2 for this mode.
 
-Upload audio files to Cloudflare R2, then add URLs like this in
-`data/podcast_episodes.json`:
-
-```json
-"audio_url": "https://audio.cntwlink.com/podcast/ep001.m4a"
-```
-
-Until R2 is ready, keep `audio_url` empty so the page will not show a broken
-player.
+Keep `audio_url` empty in `data/podcast_episodes.json`. Readers should use the
+episode title to search on their preferred Podcast platform.
