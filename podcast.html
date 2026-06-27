@@ -811,6 +811,7 @@
                 <div id="detail-podcast-local-note" class="mb-12 w-full rounded-sm overflow-hidden shadow-[0_0_30px_rgba(85,121,233,0.05)] border border-[var(--neon-lime)]/30 p-5 text-sm leading-relaxed text-gray-500 bg-white">
                     本頁採用 Podcast 導入模式，不嵌入音檔播放器。請依節目標題於常用 Podcast 平台搜尋收聽。
                 </div>
+                <div id="detail-podcast-actions" class="mb-12 flex flex-col sm:flex-row gap-4"></div>
 
                 <div id="detail-content" class="article-content text-gray-300"></div>
             </article>
@@ -1100,7 +1101,13 @@
             document.getElementById('detail-date').innerText = "上線時間：" + (item.date ? String(item.date).substring(0, 10) : '');
 
             const localNote = document.getElementById('detail-podcast-local-note');
-            localNote.innerText = '本頁採用 Podcast 導入模式，不嵌入音檔播放器。請依節目標題於常用 Podcast 平台搜尋收聽。';
+            const podcastActions = document.getElementById('detail-podcast-actions');
+            const podcastSearchTerm = encodeURIComponent(`${item.title} podcast`);
+            localNote.innerText = '本頁採用 Podcast 導入模式，不嵌入音檔播放器。請點選下方平台搜尋本集節目。';
+            podcastActions.innerHTML = `
+                <a href="https://podcasts.apple.com/search?term=${podcastSearchTerm}" target="_blank" rel="noopener" class="inline-flex items-center justify-center bg-[var(--neon-lime)] text-black px-6 py-3 rounded-full font-black text-sm tracking-widest hover:scale-105 transition-transform">Apple Podcast 搜尋</a>
+                <a href="https://www.baidu.com/s?wd=${podcastSearchTerm}" target="_blank" rel="noopener" class="inline-flex items-center justify-center border border-[var(--neon-lime)] text-[var(--neon-lime)] px-6 py-3 rounded-full font-black text-sm tracking-widest hover:bg-[var(--neon-lime)] hover:text-black transition-colors">百度搜尋</a>
+            `;
             
             let contentStr = item.content || "<p>尚無詳細內容</p>";
             if (!contentStr.trim().startsWith('<')) {
