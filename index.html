@@ -1,0 +1,1377 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <link rel="icon" href="assets/images/img-2a633f4d5a24.png" type="image/png">
+
+    <meta name="description" content="兩岸新聞網專注深度評論兩岸時事，由獨立學者以跨域視角還原真實脈絡 | 拆解隔閡，思想直航；兩岸合體，共譜新章。帶您消弭偏見，重構多維度的思考骨架。">
+    
+    <meta property="og:title" content="兩岸新聞網 | China-Taiwan Link">
+    <meta property="og:description" content="獨立觀察，跨域思維，重構兩岸新視界。">
+    <meta property="og:image" content="assets/images/img-2a633f4d5a24.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="兩岸新聞網">
+    <title>兩岸新聞網 | China-Taiwan Link</title>
+    
+    <script src="assets/vendor/tailwindcss.local.js"></script>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/vendor/ScrollTrigger.min.js"></script>
+    <script src="assets/vendor/local-icons.js"></script>
+    <script>
+    (function () {
+        'use strict';
+    
+        var STORAGE_KEY = 'ctl-language';
+        var LANG_TRADITIONAL = 'zh-Hant';
+        var LANG_SIMPLIFIED = 'zh-Hans';
+        var LANG_ENGLISH = 'en';
+        var LANGUAGE_ORDER = [LANG_TRADITIONAL, LANG_SIMPLIFIED, LANG_ENGLISH];
+        var originalTexts = new WeakMap();
+        var originalAttrs = new WeakMap();
+        var englishCache = new Map();
+        var originalDocumentTitle = document.title || '';
+        var isApplying = false;
+        var observerResumeTimer = null;
+    
+        var storage = {
+            get: function () {
+                try {
+                    return localStorage.getItem(STORAGE_KEY);
+                } catch (error) {
+                    return null;
+                }
+            },
+            set: function (value) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, value);
+                } catch (error) {
+                    // Keep the current-page switch working even when storage is blocked.
+                }
+            }
+        };
+    
+        var currentLang = storage.get() || LANG_TRADITIONAL;
+        if (LANGUAGE_ORDER.indexOf(currentLang) === -1) currentLang = LANG_TRADITIONAL;
+    
+        var phraseMap = [
+            ['\u5169\u5cb8\u65b0\u805e\u7db2', '\u4e24\u5cb8\u65b0\u95fb\u7f51'],
+            ['\u5169\u5cb8\u65b0\u805e', '\u4e24\u5cb8\u65b0\u95fb'],
+            ['\u5169\u5cb8\u95dc\u4fc2', '\u4e24\u5cb8\u5173\u7cfb'],
+            ['\u5169\u5cb8\u6642\u4e8b', '\u4e24\u5cb8\u65f6\u4e8b'],
+            ['\u5169\u5cb8\u5408\u9ad4', '\u4e24\u5cb8\u5408\u4f53'],
+            ['\u95dc\u65bc\u6211\u5011', '\u5173\u4e8e\u6211\u4eec'],
+            ['\u806f\u7d61\u6211\u5011', '\u8054\u7edc\u6211\u4eec'],
+            ['\u5408\u9ad4\u8005', '\u5408\u4f53\u8005'],
+            ['\u9996\u9801', '\u9996\u9875'],
+            ['\u641c\u5c0b', '\u641c\u7d22'],
+            ['\u5c08\u6b04', '\u4e13\u680f'],
+            ['\u5c08\u984c', '\u4e13\u9898'],
+            ['\u5c08\u6ce8', '\u4e13\u6ce8'],
+            ['\u7368\u7acb\u5b78\u8005', '\u72ec\u7acb\u5b66\u8005'],
+            ['\u7368\u7acb\u89c0\u5bdf', '\u72ec\u7acb\u89c2\u5bdf'],
+            ['\u8de8\u57df\u8996\u89d2', '\u8de8\u57df\u89c6\u89d2'],
+            ['\u771f\u5be6\u8108\u7d61', '\u771f\u5b9e\u8109\u7edc'],
+            ['\u601d\u60f3\u76f4\u822a', '\u601d\u60f3\u76f4\u822a'],
+            ['\u6d88\u5f2d\u504f\u898b', '\u6d88\u5f2d\u504f\u89c1'],
+            ['\u591a\u7dad\u5ea6', '\u591a\u7ef4\u5ea6'],
+            ['\u65b0\u7a81\u7834', '\u65b0\u7a81\u7834'],
+            ['\u7d93\u8cbf\u8ad6\u58c7', '\u7ecf\u8d38\u8bba\u575b'],
+            ['\u53f0\u7a4d\u96fb', '\u53f0\u79ef\u7535'],
+            ['\u79d1\u6280\u677f\u584a', '\u79d1\u6280\u677f\u5757'],
+            ['\u8cc7\u6599\u5eab', '\u6570\u636e\u5e93'],
+            ['\u96f2\u7aef', '\u4e91\u7aef'],
+            ['\u7121\u6cd5\u9023\u7dda', '\u65e0\u6cd5\u8fde\u7ebf'],
+            ['\u76ee\u524d\u6c92\u6709\u8cc7\u6599', '\u76ee\u524d\u6ca1\u6709\u6570\u636e'],
+            ['\u767c\u4f48\u6642\u9593', '\u53d1\u5e03\u65f6\u95f4'],
+            ['\u4e0a\u7dda\u6642\u9593', '\u4e0a\u7ebf\u65f6\u95f4'],
+            ['\u63a8\u85a6\u5c08\u6b04', '\u63a8\u8350\u4e13\u680f'],
+            ['\u5ee3\u64ad\u7bc0\u76ee', '\u5e7f\u64ad\u8282\u76ee'],
+            ['\u7bc0\u76ee\u4ecb\u7d39', '\u8282\u76ee\u4ecb\u7ecd'],
+            ['\u7cbe\u9078\u96c6\u6578', '\u7cbe\u9009\u96c6\u6570'],
+            ['\u806f\u7d61', '\u8054\u7edc'],
+            ['\u89c0\u5bdf', '\u89c2\u5bdf'],
+            ['\u5be6\u9a57', '\u5b9e\u9a8c'],
+            ['\u7bc0\u9ede', '\u8282\u70b9'],
+            ['\u78ba\u8a8d\u767c\u9001', '\u786e\u8ba4\u53d1\u9001'],
+            ['\u50b3\u9001\u8a0a\u606f', '\u4f20\u9001\u8baf\u606f'],
+            ['\u7e41\u9ad4\u4e2d\u6587', '\u7e41\u4f53\u4e2d\u6587'],
+            ['\u7c21\u9ad4\u4e2d\u6587', '\u7b80\u4f53\u4e2d\u6587']
+        ];
+    
+        var charMap = {
+            '\u5169': '\u4e24', '\u95dc': '\u5173', '\u65bc': '\u4e8e', '\u5011': '\u4eec',
+            '\u806f': '\u8054', '\u7d61': '\u7edc', '\u7db2': '\u7f51', '\u805e': '\u95fb',
+            '\u9ad4': '\u4f53', '\u9801': '\u9875', '\u7c21': '\u7b80', '\u5c08': '\u4e13',
+            '\u6ce8': '\u6ce8', '\u8a55': '\u8bc4', '\u8ad6': '\u8bba', '\u7368': '\u72ec',
+            '\u5b78': '\u5b66', '\u8996': '\u89c6', '\u5be6': '\u5b9e', '\u8108': '\u8109',
+            '\u95a1': '\u9602', '\u8b5c': '\u8c31', '\u5e36': '\u5e26', '\u898b': '\u89c1',
+            '\u69cb': '\u6784', '\u7dad': '\u7ef4', '\u8207': '\u4e0e', '\u4fc2': '\u7cfb',
+            '\u7d93': '\u7ecf', '\u8cbf': '\u8d38', '\u58c7': '\u575b', '\u65bc': '\u4e8e',
+            '\u5834': '\u573a', '\u7a4d': '\u79ef', '\u96fb': '\u7535', '\u6703': '\u4f1a',
+            '\u512a': '\u4f18', '\u9810': '\u9884', '\u52d5': '\u52a8', '\u584a': '\u5757',
+            '\u7d05': '\u7ea2', '\u8cc7': '\u8d44', '\u5eab': '\u5e93', '\u8f09': '\u8f7d',
+            '\u7dda': '\u7ebf', '\u96f2': '\u4e91', '\u7121': '\u65e0', '\u932f': '\u9519',
+            '\u8aa4': '\u8bef', '\u985e': '\u7c7b', '\u767c': '\u53d1', '\u4f48': '\u5e03',
+            '\u6642': '\u65f6', '\u9593': '\u95f4', '\u85a6': '\u8350', '\u6b04': '\u680f',
+            '\u5340': '\u533a', '\u8ecd': '\u519b', '\u6578': '\u6570', '\u8f49': '\u8f6c',
+            '\u89c0': '\u89c2', '\u7bc4': '\u8303', '\u7587': '\u7574', '\u5c0e': '\u5bfc',
+            '\u8a0a': '\u8baf', '\u50b3': '\u4f20', '\u78ba': '\u786e', '\u8a8d': '\u8ba4',
+            '\u7bc0': '\u8282', '\u9ede': '\u70b9', '\u5ee3': '\u5e7f', '\u9078': '\u9009',
+            '\u8ab2': '\u8bfe', '\u984c': '\u9898', '\u5beb': '\u5199', '\u50f9': '\u4ef7',
+            '\u908f': '\u903b', '\u8f2f': '\u8f91', '\u8ca0': '\u8d1f', '\u8cac': '\u8d23',
+            '\u56b4': '\u4e25', '\u8b39': '\u8c28', '\u790e': '\u7840', '\u5f59': '\u6c47',
+            '\u5354': '\u534f', '\u81fa': '\u53f0', '\u7063': '\u6e7e', '\u83ef': '\u534e',
+            '\u570b': '\u56fd', '\u55ae': '\u5355', '\u958b': '\u5f00', '\u9589': '\u95ed',
+            '\u6a19': '\u6807', '\u7c64': '\u7b7e', '\u8072': '\u58f0', '\u61c9': '\u5e94',
+            '\u8a72': '\u8be5', '\u842c': '\u4e07', '\u6771': '\u4e1c', '\u4e9e': '\u4e9a',
+            '\u6b50': '\u6b27', '\u8607': '\u82cf', '\u6230': '\u6218', '\u5831': '\u62a5',
+            '\u8b80': '\u8bfb', '\u807d': '\u542c', '\u5167': '\u5185', '\u5716': '\u56fe',
+            '\u5e73': '\u5e73', '\u4e7e': '\u5e72'
+        };
+    
+        var englishPhraseMap = [
+            ['\u5169\u5cb8\u65b0\u805e\u7db2 | China-Taiwan Link', 'China-Taiwan Link'],
+            ['\u5169\u5cb8\u65b0\u805e\u7db2China-Taiwan Link', 'China-Taiwan Link'],
+            ['\u5169\u5cb8\u65b0\u805e\u7db2', 'China-Taiwan Link'],
+            ['\u5169\u5cb8\u65b0\u805e', 'Cross-Strait News'],
+            ['\u95dc\u65bc\u6211\u5011', 'About'],
+            ['\u806f\u7d61\u6211\u5011', 'Contact'],
+            ['\u806f\u7d61', 'Contact'],
+            ['\u5408\u9ad4\u8005', 'Collaborators'],
+            ['\u9996\u9801HOME', 'HOME'],
+            ['\u9996\u9801', 'Home'],
+            ['\u641c\u5c0b\u5c08\u6b04...', 'Search columns...'],
+            ['\u641c\u5c0b\u96c6\u6578...', 'Search episodes...'],
+            ['\u641c\u5c0b', 'Search'],
+            ['\u5169\u5cb8\u65b0\u805e TOP5', 'Cross-Strait News TOP 5'],
+            ['\u63a8\u85a6\u5c08\u6b04 / RECOMMENDED', 'Recommended'],
+            ['\u8fd4\u56de\u65b0\u805e\u5217\u8868', 'Back to news'],
+            ['\u8fd4\u56de\u7bc0\u76ee\u5217\u8868', 'Back to episodes'],
+            ['\u767c\u4f48\u6642\u9593\uff1a', 'Published: '],
+            ['\u4e0a\u7dda\u6642\u9593\uff1a', 'Published: '],
+            ['\u5169\u5cb8\u76f4\u822a\u540c\u6b65\u65b0\u805e\u4e2d...', 'Loading cross-strait news...'],
+            ['\u6b63\u5728\u540c\u6b65\u96f2\u7aef\u8cc7\u6599\u5eab...', 'Loading local data...'],
+            ['\u96f2\u7aef\u8cc7\u6599\u5eab\u76ee\u524d\u6c92\u6709\u8cc7\u6599', 'No data in the cloud database yet'],
+            ['\u7121\u6cd5\u9023\u7dda\u81f3\u96f2\u7aef\u8cc7\u6599\u5eab', 'Unable to load local data'],
+            ['\u627e\u4e0d\u5230\u7b26\u5408\u689d\u4ef6\u7684\u96c6\u6578', 'No matching episodes found'],
+            ['\u5c1a\u7121\u8a73\u7d30\u5167\u5bb9', 'No detailed content yet'],
+            ['\u5169\u5cb8\u65b0\u805e\u7db2\u5c08\u6ce8\u6df1\u5ea6\u8a55\u8ad6\u5169\u5cb8\u6642\u4e8b\uff0c\u7531\u7368\u7acb\u5b78\u8005\u4ee5\u8de8\u57df\u8996\u89d2\u9084\u539f\u771f\u5be6\u8108\u7d61 | \u62c6\u89e3\u9694\u95a1\uff0c\u601d\u60f3\u76f4\u822a\uff1b\u5169\u5cb8\u5408\u9ad4\uff0c\u5171\u8b5c\u65b0\u7ae0\u3002\u5e36\u60a8\u6d88\u5f2d\u504f\u898b\uff0c\u91cd\u69cb\u591a\u7dad\u5ea6\u7684\u601d\u8003\u9aa8\u67b6\u3002', 'China-Taiwan Link delivers in-depth cross-strait commentary from independent scholars, rebuilding context through interdisciplinary perspectives.'],
+            ['\u3010\u5feb\u8a0a\u3011\u5169\u5cb8\u95dc\u4fc2\u65b0\u7a81\u7834\uff0c\u7d93\u8cbf\u8ad6\u58c7\u65bc\u4e0a\u6d77\u767b\u5834\u3002\uff0f\u3010\u5feb\u8a0a\u3011\u53f0\u7a4d\u96fb\u6cd5\u8aaa\u6703\u512a\u65bc\u9810\u671f\uff0c\u5e36\u52d5\u53f0\u80a1\u79d1\u6280\u677f\u584a\u5168\u9762\u7ffb\u7d05\u3002', 'Breaking: Cross-strait relations see new momentum as a trade forum opens in Shanghai. / TSMC guidance beats expectations, lifting Taiwan tech stocks.'],
+            ['\u6e1b\u5c11\u885d\u7a81\u53ca\u722d\u8b70\uff0c\u662f\u6211\u5011\u532f\u805a\u65bc\u6b64\u7684\u552f\u4e00\u76ee\u7684\u3002', 'Reducing conflict and dispute is the reason we gather here.'],
+            ['\u6211\u5011\u662f\u4f86\u81ea\u5404\u500b\u9818\u57df\u7684\u7368\u7acb\u5b78\u8005\uff0c\u81f4\u529b\u65bc\u900f\u904e\u6df1\u5ea6\u5c08\u6848\u8207\u5c08\u696d\u7684\u5169\u5cb8\u5b78\u8853\u8a55\u8ad6\uff0c\u5728\u5435\u96dc\u7684\u6642\u4ee3\u4e2d\u9084\u539f\u771f\u5be6\u7684\u8108\u7d61\u3002', 'We are independent scholars from different fields, using deep projects and professional cross-strait analysis to restore context in a noisy era.'],
+            ['\u7368\u7acb\u5718\u9ad4', 'Independent Collective'],
+            ['\u5c08\u984c\u5831\u5c0e', 'Feature Reporting'],
+            ['\u8de8\u9818\u57df\u5408\u9ad4', 'Interdisciplinary Collaboration'],
+            ['Mission / \u6211\u5011\u7684\u6838\u5fc3\u4efb\u52d9', 'Mission'],
+            ['Fields / \u5c08\u7cbe\u7bc4\u7587', 'Fields'],
+            ['\u5340\u57df\u5b89\u5168 Security', 'Regional Security'],
+            ['\u5730\u7de3\u653f\u6cbb Geopolitics', 'Geopolitics'],
+            ['\u8ecd\u4e8b\u79d1\u6280 Military Tech', 'Military Tech'],
+            ['\u6578\u4f4d\u8f49\u578b Digitalization', 'Digitalization'],
+            ['\u91d1\u878d\u89c0\u5bdf Finance', 'Finance'],
+            ['\u62c6\u89e3\u9694\u95a1\uff0c\u601d\u60f3\u76f4\u822a\uff1b', 'Decode barriers. Think directly.'],
+            ['\u5169\u5cb8\u5408\u9ad4\uff0c\u5171\u8b5c\u65b0\u7ae0\u3002', 'Build a new cross-strait chapter.'],
+            ['\u5efa\u7acb', 'Build'],
+            ['\u89c0\u5bdf\u7bc0\u9ede.', 'Observation Node.'],
+            ['\u958b\u59cb\u8de8\u57df\u5408\u9ad4', 'Start an interdisciplinary exchange'],
+            ['\u50b3\u9001\u8a0a\u606f', 'Send Message'],
+            ['\u78ba\u8a8d\u767c\u9001 TRANSMIT', 'TRANSMIT'],
+            ['\u6211\u5011\u671f\u5f85\u8207\u7368\u7acb\u601d\u8003\u8005\u3001\u8de8\u57df\u5c08\u5bb6\u9032\u884c\u6df1\u5ea6\u4ea4\u6d41\u3002', 'We welcome thoughtful exchanges with independent thinkers and interdisciplinary experts.'],
+            ['\u7121\u8ad6\u662f\u60c5\u5831\u63d0\u4f9b\u3001\u5c08\u984c\u5408\u4f5c\uff0c\u6216\u662f\u55ae\u7d14\u7684\u7406\u5ff5\u78b0\u649e\uff0c\u8acb\u8b93\u6211\u5011\u77e5\u9053\u4f60\u7684\u60f3\u6cd5\u3002', 'Whether it is a tip, collaboration, or a conversation, tell us what you are thinking.'],
+            ['\u59d3\u540d Name', 'Name'],
+            ['\u4fe1\u7bb1 Email', 'Email'],
+            ['\u4e3b\u65e8 Subject', 'Subject'],
+            ['\u5167\u5bb9 Message', 'Message'],
+            ['PODCAST \u5ee3\u64ad\u7bc0\u76ee', 'Podcast'],
+            ['\u7bc0\u76ee\u4ecb\u7d39 / SHOWS', 'Shows'],
+            ['\u5408\u9ad4\u8005 / HOSTS', 'Hosts'],
+            ['\u7cbe\u9078\u96c6\u6578 / FEATURED EPISODES', 'Featured Episodes'],
+            ['\u8f09\u5165\u66f4\u591a / LOAD MORE', 'Load More'],
+            ['\u4e3b\u6253\u5c08\u6b04', 'Featured Column'],
+            ['\u5728\u5730\u751f\u6d3b', 'Local Life'],
+            ['\u5408\u9ad4\u8005\uff1a\u9023\u7d50\u5169\u5cb8\u3001\u8de8\u8d8a\u7586\u754c\u7684\u89c0\u5bdf\u5bb6', 'Collaborators: observers connecting both sides across boundaries'],
+            ['\u8cc7\u6599\u50b3\u8f38\u4e2d\u65b7', 'Data transmission interrupted'],
+            ['\u8acb\u78ba\u8a8d API \u6b0a\u9650\u6216\u7a0d\u5f8c\u518d\u8a66', 'Please check API permissions or try again later'],
+            ['\u5c08\u6ce8\u6df1\u5ea6\u8a55\u8ad6\u5169\u5cb8\u6642\u4e8b', 'In-depth cross-strait commentary'],
+            ['\u7368\u7acb\u5b78\u8005', 'independent scholars'],
+            ['\u8de8\u57df\u8996\u89d2', 'interdisciplinary perspectives'],
+            ['\u771f\u5be6\u8108\u7d61', 'real context'],
+            ['\u8cc7\u6599\u5eab', 'database'],
+            ['\u5c08\u6b04', 'column'],
+            ['\u672a\u5206\u985e', 'Uncategorized'],
+            ['\u6700\u65b0', 'Latest']
+        ];
+    
+        function toSimplified(text) {
+            var output = text;
+            phraseMap.forEach(function (pair) {
+                output = output.split(pair[0]).join(pair[1]);
+            });
+            return Array.from(output).map(function (char) {
+                return charMap[char] || char;
+            }).join('');
+        }
+    
+        function toEnglish(text) {
+            var output = text;
+            englishPhraseMap.forEach(function (pair) {
+                output = output.split(pair[0]).join(pair[1]);
+            });
+            return output;
+        }
+    
+        function hasCjk(text) {
+            return /[\u3400-\u9fff]/.test(text);
+        }
+    
+        function shouldMachineTranslate(text) {
+            return false;
+        }
+    
+        function cacheKey(text) {
+            var hash = 0;
+            for (var i = 0; i < text.length; i += 1) {
+                hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+            }
+            return 'ctl-en-' + Math.abs(hash) + '-' + text.length;
+        }
+    
+        function readCachedEnglish(text) {
+            var key = cacheKey(text);
+            if (englishCache.has(key)) return englishCache.get(key);
+    
+            try {
+                var stored = sessionStorage.getItem(key);
+                if (stored) {
+                    englishCache.set(key, stored);
+                    return stored;
+                }
+            } catch (error) {
+                // Session storage is an optimization only.
+            }
+    
+            return null;
+        }
+    
+        function writeCachedEnglish(text, translated) {
+            var key = cacheKey(text);
+            englishCache.set(key, translated);
+            try {
+                sessionStorage.setItem(key, translated);
+            } catch (error) {
+                // Ignore storage quota or privacy-mode failures.
+            }
+        }
+    
+        function pauseObserverForDomWrite() {
+            if (observerResumeTimer) clearTimeout(observerResumeTimer);
+            isApplying = true;
+            observerResumeTimer = setTimeout(function () {
+                isApplying = false;
+            }, 0);
+        }
+    
+        function fetchGoogleTranslation(text) {
+            return Promise.resolve('');
+        }
+    
+        function fetchFallbackTranslation(text) {
+            return Promise.resolve('');
+        }
+    
+        function translateEnglishChunk(text) {
+            return Promise.resolve('');
+        }
+    
+        function splitTranslationText(text) {
+            var chunks = [];
+            var remaining = text;
+            var maxLength = 900;
+    
+            while (remaining.length > maxLength) {
+                var slice = remaining.slice(0, maxLength);
+                var breakAt = Math.max(
+                    slice.lastIndexOf('\u3002'),
+                    slice.lastIndexOf('\uff01'),
+                    slice.lastIndexOf('\uff1f'),
+                    slice.lastIndexOf('\n'),
+                    slice.lastIndexOf(' ')
+                );
+    
+                if (breakAt < 300) breakAt = maxLength;
+                chunks.push(remaining.slice(0, breakAt + 1));
+                remaining = remaining.slice(breakAt + 1);
+            }
+    
+            if (remaining) chunks.push(remaining);
+            return chunks;
+        }
+    
+        function machineTranslateToEnglish(text) {
+            var cached = readCachedEnglish(text);
+            if (cached) return Promise.resolve(cached);
+    
+            var chunks = splitTranslationText(text);
+            return Promise.all(chunks.map(translateEnglishChunk)).then(function (translatedChunks) {
+                if (translatedChunks.some(function (chunk) { return !chunk; })) return '';
+                var translated = translatedChunks.join('');
+                writeCachedEnglish(text, translated);
+                return translated;
+            }).catch(function () {
+                return '';
+            });
+        }
+    
+        function translateDocumentTitle() {
+            if (!originalDocumentTitle) originalDocumentTitle = document.title || '';
+            var next = translateText(originalDocumentTitle);
+    
+            if (document.title !== next) {
+                pauseObserverForDomWrite();
+                document.title = next;
+            }
+    
+            if (shouldMachineTranslate(next)) {
+                machineTranslateToEnglish(originalDocumentTitle).then(function (translated) {
+                    if (!translated || currentLang !== LANG_ENGLISH) return;
+                    pauseObserverForDomWrite();
+                    document.title = translated;
+                });
+            }
+        }
+    
+        function queueEnglishTextNodeTranslation(node, original) {
+            machineTranslateToEnglish(original).then(function (translated) {
+                if (!translated) return;
+                if (currentLang !== LANG_ENGLISH) return;
+                if (originalTexts.get(node) !== original) return;
+                pauseObserverForDomWrite();
+                node.nodeValue = translated;
+            });
+        }
+    
+        function queueEnglishAttributeTranslation(element, attr, original) {
+            machineTranslateToEnglish(original).then(function (translated) {
+                if (!translated) return;
+                if (currentLang !== LANG_ENGLISH) return;
+                var stored = originalAttrs.get(element);
+                if (!stored || stored[attr] !== original) return;
+                pauseObserverForDomWrite();
+                element.setAttribute(attr, translated);
+            });
+        }
+    
+        function translateText(text) {
+            if (currentLang === LANG_SIMPLIFIED) return toSimplified(text);
+            if (currentLang === LANG_ENGLISH) return toEnglish(text);
+            return text;
+        }
+    
+        function isSkippableElement(element) {
+            return Boolean(element && element.closest && element.closest('script, style, noscript, iframe, svg, path, [data-lang-toggle]'));
+        }
+    
+        function shouldSkipTextNode(node) {
+            return !node || !node.parentElement || isSkippableElement(node.parentElement) || Boolean(node.parentElement.closest('input, textarea'));
+        }
+    
+        function convertTextNode(node, resetOriginal) {
+            if (shouldSkipTextNode(node) || !node.nodeValue || !node.nodeValue.trim()) return;
+            if (resetOriginal || !originalTexts.has(node)) {
+                originalTexts.set(node, node.nodeValue);
+            }
+    
+            var original = originalTexts.get(node);
+            var next = translateText(original);
+            if (node.nodeValue !== next) node.nodeValue = next;
+            if (shouldMachineTranslate(next)) queueEnglishTextNodeTranslation(node, original);
+        }
+    
+        function convertAttributes(element, resetOriginal) {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE || isSkippableElement(element)) return;
+    
+            var attrs = ['alt', 'title', 'placeholder', 'aria-label'];
+            var stored = originalAttrs.get(element);
+            if (!stored) {
+                stored = {};
+                originalAttrs.set(element, stored);
+            }
+    
+            attrs.forEach(function (attr) {
+                if (!element.hasAttribute(attr)) return;
+                if (resetOriginal || !Object.prototype.hasOwnProperty.call(stored, attr)) {
+                    stored[attr] = element.getAttribute(attr);
+                }
+    
+                var original = stored[attr];
+                var next = translateText(original);
+                if (element.getAttribute(attr) !== next) element.setAttribute(attr, next);
+                if (shouldMachineTranslate(next)) queueEnglishAttributeTranslation(element, attr, original);
+            });
+        }
+    
+        function updateButtons() {
+            var label = '\u7e41';
+            var ariaLabel = '\u76ee\u524d\u70ba\u7e41\u9ad4\u4e2d\u6587\uff0c\u9ede\u64ca\u5207\u63db\u8a9e\u8a00';
+    
+            if (currentLang === LANG_SIMPLIFIED) {
+                label = '\u7b80';
+                ariaLabel = '\u76ee\u524d\u4e3a\u7b80\u4f53\u4e2d\u6587\uff0c\u70b9\u51fb\u5207\u6362\u8bed\u8a00';
+            } else if (currentLang === LANG_ENGLISH) {
+                label = 'EN';
+                ariaLabel = 'Current language is English. Click to switch language.';
+            }
+    
+            document.querySelectorAll('[data-lang-toggle]').forEach(function (button) {
+                button.textContent = label;
+                button.setAttribute('aria-label', ariaLabel);
+                button.setAttribute('title', ariaLabel);
+                button.setAttribute('data-current-lang', currentLang);
+            });
+        }
+    
+        function applyLanguage(root, resetOriginal) {
+            root = root || document.body;
+            if (!root) return;
+    
+            if (observerResumeTimer) clearTimeout(observerResumeTimer);
+            isApplying = true;
+            document.documentElement.lang = currentLang === LANG_SIMPLIFIED ? 'zh-CN' : (currentLang === LANG_ENGLISH ? 'en' : 'zh-TW');
+            translateDocumentTitle();
+    
+            if (root.nodeType === Node.TEXT_NODE) {
+                convertTextNode(root, resetOriginal);
+            } else if (root.nodeType === Node.ELEMENT_NODE || root.nodeType === Node.DOCUMENT_NODE) {
+                convertAttributes(root, resetOriginal);
+    
+                var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                    acceptNode: function (node) {
+                        return shouldSkipTextNode(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+                    }
+                });
+    
+                var node = walker.nextNode();
+                while (node) {
+                    convertTextNode(node, resetOriginal);
+                    node = walker.nextNode();
+                }
+    
+                if (root.querySelectorAll) {
+                    root.querySelectorAll('*').forEach(function (element) {
+                        convertAttributes(element, resetOriginal);
+                    });
+                }
+            }
+    
+            updateButtons();
+            observerResumeTimer = setTimeout(function () {
+                isApplying = false;
+            }, 0);
+        }
+    
+        function toggleLanguage() {
+            var currentIndex = LANGUAGE_ORDER.indexOf(currentLang);
+            currentLang = LANGUAGE_ORDER[(currentIndex + 1) % LANGUAGE_ORDER.length];
+            storage.set(currentLang);
+            applyLanguage(document.body, false);
+            requestAnimationFrame(function () {
+                applyLanguage(document.body, false);
+            });
+        }
+    
+        function initLanguageToggle() {
+            document.addEventListener('click', function (event) {
+                var button = event.target.closest && event.target.closest('[data-lang-toggle]');
+                if (!button) return;
+                event.preventDefault();
+                event.stopPropagation();
+                toggleLanguage();
+            });
+    
+            applyLanguage(document.body, false);
+    
+            var observer = new MutationObserver(function (mutations) {
+                if (isApplying) return;
+    
+                mutations.forEach(function (mutation) {
+                    if (mutation.type === 'characterData') {
+                        convertTextNode(mutation.target, true);
+                        return;
+                    }
+    
+                    mutation.addedNodes.forEach(function (node) {
+                        applyLanguage(node, false);
+                    });
+                });
+    
+                updateButtons();
+            });
+    
+            observer.observe(document.body, {
+                childList: true,
+                characterData: true,
+                subtree: true
+            });
+        }
+    
+        window.ctlApplyLanguage = function () {
+            applyLanguage(document.body, false);
+        };
+        window.ctlToggleLanguage = toggleLanguage;
+    
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLanguageToggle);
+        } else {
+            initLanguageToggle();
+        }
+    })();
+    
+    </script>
+    
+    <style>
+        
+        :root { 
+            --neon-lime: #5579e9; 
+            --royal-blue: #5579e9; 
+            --editor-blue: #5579e9;
+            --paper-white: #ffffff;
+            --ink-black: #111111;
+            --line-gray: rgba(0,0,0,0.14);
+            --serif-title: "Noto Serif TC", "Songti TC", "PMingLiU", "MingLiU", serif;
+            --deep-black: #050505; 
+            --dark-gray-glass: rgba(18, 18, 18, 0.95); 
+        }
+        
+        body { 
+            background-color: var(--royal-blue); 
+            color: white; 
+            font-family: Arial, "Microsoft JhengHei", "PingFang TC", sans-serif; 
+            overflow-x: hidden; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        .bg-grid { background-image: none; }
+        
+        .grain { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; opacity: 0.04; background-image: url("assets/images/img-1b6359b1d34b.png"); }
+        #flashlight { position: fixed; width: 500px; height: 500px; background: radial-gradient(circle, rgba(85,121,233,0.1) 0%, rgba(85,121,233,0) 70%); border-radius: 50%; pointer-events: none; z-index: 1; transform: translate(-50%, -50%); display: none; }
+        #cursor { position: fixed; width: 10px; height: 10px; background: var(--neon-lime); border-radius: 50%; pointer-events: none; z-index: 10000; mix-blend-mode: difference; display: none; }
+        @media (pointer: fine) { #flashlight, #cursor { display: block; } }
+        
+        .glass-nav { background: var(--dark-gray-glass); backdrop-filter: blur(25px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .glass-card { background: transparent; backdrop-filter: none; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; transition: all 0.3s ease; }
+        .glass-card:hover { border-color: var(--neon-lime); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .reveal { opacity: 0; transform: translateY(30px); }
+
+        .cat-text-btn { transition: all 0.2s ease; cursor: pointer; white-space: nowrap; font-size: 0.85rem; font-weight: 700; opacity: 0.6; }
+        .cat-text-btn.active { color: var(--neon-lime); opacity: 1; border-bottom: 2px solid var(--neon-lime); padding-bottom: 4px; }
+        .cat-text-btn:not(.active):hover { color: var(--neon-lime); opacity: 0.8; }
+
+        .marquee-container { width: 100%; overflow: hidden; background-color: var(--editor-blue); color: white; display: flex; align-items: center; padding: 6px 0; }
+        .marquee-content { display: flex; white-space: nowrap; animation: scroll-marquee 25s linear infinite; }
+        .marquee-content span { padding-right: 50px; font-weight: 900; font-size: 0.85rem; letter-spacing: 0.1em; }
+        @keyframes scroll-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        .brick-num { 
+            width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; 
+            font-weight: 900; font-style: italic; color: white; box-shadow: 3px 3px 0px rgba(0,0,0,0.3);
+        }
+
+        .nav-btn {
+            position: absolute; top: 50%; transform: translateY(-50%); z-index: 50;
+            width: 50px; height: 50px; background: transparent;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 1.5rem; transition: all 0.3s; opacity: 0; pointer-events: none;
+        }
+        .group:hover .nav-btn { opacity: 1; pointer-events: auto; }
+        .nav-btn:hover { background: var(--editor-blue); color: white; border-color: var(--editor-blue); box-shadow: 0 0 20px rgba(85, 121, 233, 0.35); }
+
+        .article-content { font-size: 1.125rem; line-height: 2; opacity: 0.9; color: #E5E5E5; }
+        .article-content p { margin-bottom: 1.5rem; }
+        #detail-view { background: var(--paper-white); color: var(--ink-black); }
+        #detail-view article.glass-card { background: transparent; backdrop-filter: none; border: 0; box-shadow: none; border-radius: 0; }
+        #detail-view article.glass-card > .absolute:first-child { display: none; }
+        #detail-title { color: var(--ink-black); font-family: var(--serif-title); }
+        #detail-date, #detail-main-body, #detail-main-body .article-content { color: var(--ink-black); }
+        .detail-back-button { background: white !important; border: 2px solid var(--editor-blue) !important; color: var(--ink-black) !important; box-shadow: none; }
+        .detail-back-button:hover { background: white !important; color: var(--ink-black) !important; }
+
+        .site-header-paper { background: var(--paper-white); color: var(--ink-black); border-bottom: 1px solid var(--line-gray); box-shadow: none; }
+        .site-header-paper a, .site-header-paper button { color: var(--ink-black); }
+        .site-header-paper a:hover, .site-header-paper button:hover { color: var(--editor-blue); }
+        .site-header-actions { white-space: nowrap; }
+        .site-header-actions a { white-space: nowrap; }
+        .site-brand-dot { background: var(--editor-blue); }
+        .site-outline-action { border: 1px solid var(--editor-blue); color: var(--editor-blue) !important; border-radius: 999px; padding: 0.375rem 1.25rem; }
+        .site-outline-action:hover { background: var(--editor-blue); color: white !important; }
+        .site-lang-button { border: 1px solid rgba(0,0,0,0.25); border-radius: 999px; padding: 0.375rem 0.75rem; }
+        .site-lang-button:hover { border-color: var(--editor-blue); color: var(--editor-blue); }
+        .site-header-search { width: 220px; position: relative; }
+        .site-header-search input { width: 100%; border: 1px solid rgba(0,0,0,0.18); color: var(--ink-black); padding: 0.48rem 2.45rem 0.48rem 0.85rem; font-size: 0.82rem; font-weight: 800; outline: none; }
+        .site-header-search input:focus { border-color: var(--editor-blue); }
+        .site-header-search button { position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%); color: rgba(0,0,0,0.45); }
+
+        .reporter-shell { background: var(--paper-white); color: var(--ink-black); min-height: 100vh; }
+        .reporter-main-section { padding: 8.1rem 1.5rem 3.5rem; background: var(--paper-white); }
+        .reporter-category-nav { border-top: 1px solid var(--line-gray); border-bottom: 1px solid var(--line-gray); display: flex; align-items: center; gap: 2rem; padding: 1.05rem 0; margin-bottom: 2.6rem; overflow-x: auto; white-space: nowrap; }
+        .reporter-menu-mark { color: #666; font-size: 1.8rem; line-height: 1; flex: 0 0 auto; }
+        .reporter-category-nav .cat-text-btn { color: var(--ink-black); opacity: 0.82; font-size: 1rem; font-weight: 900; margin-right: 0; letter-spacing: 0; }
+        .reporter-category-nav .cat-text-btn.active { color: var(--editor-blue); border-bottom-color: var(--editor-blue); }
+        .reporter-category-nav .cat-text-btn:not(.active):hover { color: var(--editor-blue); opacity: 1; }
+        .reporter-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) 3.5rem; gap: 2rem; align-items: start; }
+        .reporter-picks { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1.7rem; margin-bottom: 4.8rem; }
+        .reporter-pick-card { color: var(--ink-black); cursor: pointer; display: block; }
+        .reporter-pick-card img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; display: block; margin-bottom: 1rem; background: #e8e8e8; }
+        .reporter-category { color: var(--editor-blue); font-size: 0.76rem; font-weight: 900; line-height: 1.3; margin-bottom: 0.55rem; }
+        .reporter-pick-title { color: var(--ink-black); font-family: var(--serif-title); font-size: 1.05rem; font-weight: 900; line-height: 1.62; letter-spacing: 0; }
+        .reporter-pick-card:hover .reporter-pick-title, .reporter-feature-story:hover .reporter-feature-title { color: var(--editor-blue); }
+        .reporter-podcast-section { border-top: 1px solid var(--line-gray); border-bottom: 1px solid var(--line-gray); margin-top: 3.2rem; margin-bottom: 3.4rem; padding: 1.8rem 0; display: grid; grid-template-columns: 160px minmax(0, 1.35fr) minmax(260px, 0.85fr); gap: 2rem; align-items: stretch; }
+        .reporter-podcast-label { color: var(--editor-blue); font-size: 0.8rem; font-weight: 900; margin-bottom: 0.45rem; }
+        .reporter-podcast-heading { color: var(--ink-black); font-family: var(--serif-title); font-size: 2.2rem; font-weight: 900; line-height: 1.15; }
+        .reporter-podcast-shows { display: flex; flex-direction: column; gap: 1.3rem; }
+        .reporter-podcast-card { display: flex; gap: 1.2rem; align-items: flex-start; color: var(--ink-black); }
+        .reporter-podcast-card.secondary { border-top: 1px solid var(--line-gray); padding-top: 1.3rem; }
+        .reporter-podcast-card img { width: 112px; height: 112px; object-fit: cover; flex: 0 0 auto; }
+        .reporter-podcast-show-label { color: var(--editor-blue); font-size: 0.72rem; font-weight: 900; margin-bottom: 0.35rem; }
+        .reporter-podcast-title { font-family: var(--serif-title); font-size: 1.65rem; font-weight: 900; line-height: 1.2; margin-bottom: 0.55rem; }
+        .reporter-podcast-copy { color: #555; font-size: 0.92rem; font-weight: 500; line-height: 1.75; }
+        .reporter-episode-list { display: flex; flex-direction: column; gap: 0.55rem; }
+        #reporter-home-episode-buttons { display: flex; flex-direction: column; gap: 0.55rem; }
+        .reporter-episode-list-title { color: var(--ink-black); font-size: 0.82rem; font-weight: 900; margin-bottom: 0.2rem; }
+        .reporter-episode-button { border: 1px solid var(--line-gray); color: var(--ink-black); background: white; padding: 0.65rem 0.75rem; text-align: left; font-family: var(--serif-title); font-size: 0.9rem; font-weight: 900; line-height: 1.35; cursor: pointer; transition: all 0.2s ease; }
+        .reporter-episode-button:hover { border-color: var(--editor-blue); color: var(--editor-blue); }
+        .reporter-podcast-link { border: 1px solid var(--editor-blue); color: var(--editor-blue); display: inline-flex; align-items: center; justify-content: center; margin-top: 0.7rem; padding: 0.55rem 0.9rem; font-size: 0.78rem; font-weight: 900; width: max-content; transition: all 0.2s ease; }
+        .reporter-podcast-link:hover { background: var(--editor-blue); color: white; }
+        .reporter-podcast-link.is-disabled { opacity: 0.72; pointer-events: none; }
+        .reporter-side-rail { position: fixed; right: 1.5rem; top: 12.5rem; z-index: 60; display: flex; flex-direction: column; align-items: center; gap: clamp(0.85rem, 2.4vh, 2.1rem); color: var(--editor-blue); font-size: 1rem; font-weight: 900; line-height: 1.15; }
+        .reporter-side-rail button { writing-mode: vertical-rl; letter-spacing: 0.08em; white-space: nowrap; flex: 0 0 auto; padding: 0.55rem 0.35rem; transition: all 0.2s ease; }
+        .reporter-side-rail button.active { background: var(--editor-blue); color: white; }
+        .reporter-feature-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 2rem; align-items: start; }
+        .reporter-feature-story { max-width: 910px; margin: 0 auto; color: var(--ink-black); cursor: pointer; text-align: left; }
+        .reporter-feature-kicker { color: var(--editor-blue); font-size: 0.9rem; font-weight: 900; margin-bottom: 0.8rem; }
+        .reporter-feature-title { font-family: var(--serif-title); font-size: clamp(2rem, 5vw, 4.1rem); font-weight: 900; line-height: 1.16; letter-spacing: 0; margin-bottom: 1rem; color: var(--ink-black); }
+        .reporter-feature-summary { color: #555; font-size: 1.08rem; font-weight: 500; line-height: 1.9; max-width: 760px; margin-bottom: 1.8rem; }
+        .reporter-feature-meta { color: #777; font-size: 0.82rem; font-weight: 800; margin-bottom: 0.25rem; }
+        .reporter-feature-image { width: min(100%, 560px); aspect-ratio: 16 / 10; object-fit: cover; display: block; margin: 0 auto; background: #e8e8e8; }
+        .reporter-preview-controls { margin-top: 10rem; display: flex; flex-direction: column; gap: 0.8rem; }
+        .reporter-preview-button { width: 56px; height: 56px; border: 1px solid var(--editor-blue); color: var(--editor-blue); background: white; display: flex; align-items: center; justify-content: center; font-size: 1.7rem; font-weight: 900; line-height: 1; cursor: pointer; transition: all 0.2s ease; }
+        .reporter-preview-button:hover { background: var(--editor-blue); color: white; }
+        .reporter-content-wrap { background: var(--paper-white); color: var(--ink-black); }
+        #col-grid-small.reporter-content-wrap .glass-card { background: #fff; color: var(--ink-black); border: 1px solid var(--line-gray); box-shadow: none; }
+        .article-filter-tool { border-top: 1px solid var(--line-gray); border-bottom: 1px solid var(--line-gray); margin-top: 0.8rem; padding: 1.2rem 0; display: grid; grid-template-columns: minmax(220px, 320px) minmax(0, 1fr); gap: 1.5rem; align-items: center; }
+        .article-filter-search { position: relative; }
+        .article-filter-search input { width: 100%; border: 1px solid rgba(0,0,0,0.18); color: var(--ink-black); padding: 0.72rem 2.8rem 0.72rem 1rem; font-size: 0.9rem; font-weight: 800; outline: none; }
+        .article-filter-search input:focus { border-color: var(--editor-blue); }
+        .article-filter-search button { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--editor-blue); }
+        .article-filter-cats { display: flex; gap: 1rem; overflow-x: auto; white-space: nowrap; padding-bottom: 0.15rem; }
+        .article-filter-cats .cat-text-btn { color: var(--ink-black); opacity: 0.75; font-size: 0.9rem; font-weight: 900; }
+        .article-filter-cats .cat-text-btn.active { color: var(--editor-blue); opacity: 1; border-bottom-color: var(--editor-blue); }
+        .peace-cta { background: #2b2b2b; color: white; margin: 1.4rem 0 1.2rem; padding: 1.55rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
+        .peace-cta h2 { color: white; font-family: var(--serif-title); font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 900; line-height: 1.2; margin-bottom: 0.45rem; }
+        .peace-cta p { color: rgba(255,255,255,0.88); font-size: 0.98rem; font-weight: 700; line-height: 1.7; }
+        .peace-cta a { background: var(--editor-blue); color: white; border-radius: 999px; padding: 0.85rem 1.6rem; font-weight: 900; white-space: nowrap; transition: transform 0.2s ease; }
+        .peace-cta a:hover { transform: translateY(-2px); }
+        .article-card-category { color: white; }
+        .article-card-title { color: white; font-family: var(--serif-title); font-weight: 900; }
+        .group:hover .article-card-title { color: white; }
+
+        @media (min-width: 1024px) {
+            .reporter-main-section { padding-right: 4.5rem; }
+            .reporter-side-rail { right: 0.85rem; }
+        }
+
+        @media (min-width: 769px) {
+            #detail-view { padding-top: 9.5rem; }
+            #detail-view .detail-back-button { margin-bottom: 20px !important; }
+        }
+
+        @media (max-width: 1180px) {
+            .reporter-picks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .reporter-podcast-section { grid-template-columns: 1fr; }
+            .reporter-podcast-shows { grid-template-columns: 1fr; }
+            .article-filter-tool { grid-template-columns: 1fr; }
+            .peace-cta { align-items: flex-start; flex-direction: column; }
+        }
+
+        @media (max-width: 1023px) {
+            .reporter-side-rail { display: none; }
+        }
+
+        @media (max-width: 768px) {
+            #detail-view { padding-top: 8.45rem; }
+            #detail-view .detail-back-button { margin-bottom: 20px !important; }
+            #detail-view article.glass-card { padding-top: 0; }
+            .reporter-main-section { padding-top: 8.5rem; }
+            .reporter-hero-grid { display: block; }
+            .reporter-picks { display: flex; gap: 1.4rem; margin: 0 -1.5rem 2.4rem; padding: 0 1.5rem 0.25rem; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+            .reporter-pick-card { flex: 0 0 72%; scroll-snap-align: start; }
+            .reporter-pick-card img { aspect-ratio: 16 / 9; margin-bottom: 0.8rem; }
+            .reporter-category { color: #d7001f; font-size: 0.78rem; margin-bottom: 0.4rem; }
+            .reporter-pick-title { font-size: 1.1rem; line-height: 1.55; }
+            .reporter-feature-row { display: block; }
+            .reporter-preview-controls { margin: 2rem auto 0; flex-direction: row; justify-content: center; }
+            .reporter-feature-title { font-size: 2.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+    <div id="flashlight"></div>
+    <div id="cursor"></div>
+
+    <header class="fixed top-0 w-full z-[200]">
+        <nav class="px-6 py-4 md:px-10 md:py-5 flex justify-between items-center site-header-paper">
+            <a href="index.html" onclick="goHome(true)" class="flex items-center gap-3">
+                <img src="assets/images/img-4c7b5453dc8a.png" alt="兩岸直航CTL" class="h-12 md:h-14 w-auto object-contain">
+            </a>
+            <div class="hidden lg:block text-sm font-bold text-gray-600">深度評論 × 跨域觀察 × 兩岸視角</div>
+            <div class="site-header-actions hidden md:flex items-center gap-5 text-sm font-bold uppercase">
+                <div class="site-header-search">
+                    <input type="text" id="main-search-input" placeholder="搜尋專欄...">
+                    <button onclick="handleMainSearch()" aria-label="搜尋">
+                        <iconify-icon icon="lucide:search" class="text-xl"></iconify-icon>
+                    </button>
+                </div>
+                <a href="podcast.html" class="transition-all">PODCAST</a>
+                <a href="Collaborators.html" class="transition-all">合體者</a>
+                <a href="about.html" class="transition-all">關於我們</a>
+                <a href="contact.html" class="site-outline-action transition-all font-black">聯絡我們</a>
+                <button type="button" data-lang-toggle class="site-lang-button transition-all font-black">简</button>
+            </div>
+            <button class="md:hidden text-4xl" onclick="toggleMenu()"><iconify-icon icon="lucide:menu"></iconify-icon></button>
+        </nav>
+        <div class="marquee-container">
+            <div class="marquee-content">
+                <span>兩岸新聞網專注深度評論兩岸時事，由獨立學者以跨域視角還原真實脈絡 | 拆解隔閡，思想直航；兩岸合體，共譜新章。帶您消弭偏見，重構多維度的思考骨架。</span>
+                <span>【快訊】兩岸關係新突破，經貿論壇於上海登場。／【快訊】台積電法說會優於預期，帶動台股科技板塊全面翻紅。</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="mobile-menu" class="fixed top-0 right-0 w-full h-full bg-[var(--deep-black)] z-[250] flex flex-col items-center justify-center translate-x-full transition-transform duration-500">
+        <button class="absolute top-6 right-6 text-4xl" onclick="toggleMenu()"><iconify-icon icon="lucide:x"></iconify-icon></button>
+        <div class="flex flex-col gap-8 text-center text-3xl font-black italic items-center">
+            <a href="index.html" onclick="toggleMenu(); goHome(true)" class="hover:text-[var(--neon-lime)] transition-colors">首頁HOME</a>
+            <a href="podcast.html" class="hover:text-[var(--neon-lime)] transition-colors">PODCAST</a>
+            <a href="Collaborators.html" class="hover:text-[var(--neon-lime)] transition-colors">合體者</a>
+            <a href="about.html" class="hover:text-[var(--neon-lime)] transition-colors">ABOUT</a>
+            <a href="contact.html" class="text-[var(--neon-lime)] border-2 border-[var(--neon-lime)] px-10 py-3 rounded-full hover:bg-[var(--neon-lime)] hover:text-black transition-all font-black not-italic mt-2 text-2xl tracking-[0.1em]">聯絡我們</a>
+            <button type="button" data-lang-toggle class="text-[var(--neon-lime)] border-2 border-[var(--neon-lime)] w-20 h-20 rounded-full hover:bg-[var(--neon-lime)] hover:text-black transition-all font-black not-italic text-2xl">简</button>
+        </div>
+    </div>
+
+    <div id="main-wrap" class="reporter-shell relative z-10 transition-opacity duration-500">
+        <section class="reporter-main-section">
+            <div class="max-w-7xl mx-auto">
+                <div class="reporter-category-nav" id="category-filters">
+                    <span class="reporter-menu-mark"><iconify-icon icon="lucide:menu"></iconify-icon></span>
+                    <button onclick="setHeroCategory('全部')" class="cat-text-btn active mr-8" data-cat="全部">最新文章</button>
+                    <button onclick="setHeroCategory('兩岸新聞')" class="cat-text-btn mr-8" data-cat="兩岸新聞">兩岸新聞</button>
+                    <button onclick="setHeroCategory('藝術文化')" class="cat-text-btn mr-8" data-cat="藝術文化">藝術文化</button>
+                    <button onclick="setHeroCategory('社會公眾')" class="cat-text-btn mr-8" data-cat="社會公眾">社會公眾</button>
+                    <button onclick="setHeroCategory('中台國際')" class="cat-text-btn mr-8" data-cat="中台國際">中台國際</button>
+                    <button onclick="setHeroCategory('政治政策')" class="cat-text-btn mr-8" data-cat="政治政策">政治政策</button>
+                    <button onclick="setHeroCategory('生活休閒')" class="cat-text-btn mr-8" data-cat="生活休閒">生活休閒</button>
+                    <button onclick="setHeroCategory('財經商業')" class="cat-text-btn mr-8" data-cat="財經商業">財經商業</button>
+                    <button onclick="setHeroCategory('趨勢報導')" class="cat-text-btn mr-8" data-cat="趨勢報導">趨勢報導</button>
+                </div>
+
+                <div id="hero-slider-wrap"></div>
+
+                <section class="peace-cta" aria-label="認識兩岸直航">
+                    <div>
+                        <h2>減少衝突及爭議，是我們匯聚於此的唯一目的。</h2>
+                        <p>我們期待與獨立思考者、跨域專家進行深度交流，一起為世界和平盡一份心。</p>
+                    </div>
+                    <a href="contact.html">聯絡我們</a>
+                </section>
+
+                <div class="article-filter-tool" id="rail-latest" data-rail-id="latest" aria-label="文章搜尋與主題篩選">
+                    <div class="article-filter-search">
+                        <input type="text" id="article-search-input" placeholder="搜尋文章關鍵字...">
+                        <button type="button" onclick="handleMainSearch('article-search-input')" aria-label="搜尋文章">
+                            <iconify-icon icon="lucide:search" class="text-xl"></iconify-icon>
+                        </button>
+                    </div>
+                    <div class="article-filter-cats" aria-label="各類主題篩選">
+                        <button onclick="setCategory('全部')" class="cat-text-btn active" data-cat="全部">最新議題</button>
+                        <button onclick="setCategory('兩岸新聞')" class="cat-text-btn" data-cat="兩岸新聞">兩岸新聞</button>
+                        <button onclick="setCategory('藝術文化')" class="cat-text-btn" data-cat="藝術文化">藝術文化</button>
+                        <button onclick="setCategory('社會公眾')" class="cat-text-btn" data-cat="社會公眾">社會公眾</button>
+                        <button onclick="setCategory('中台國際')" class="cat-text-btn" data-cat="中台國際">中台國際</button>
+                        <button onclick="setCategory('政治政策')" class="cat-text-btn" data-cat="政治政策">政治政策</button>
+                        <button onclick="setCategory('生活休閒')" class="cat-text-btn" data-cat="生活休閒">生活休閒</button>
+                        <button onclick="setCategory('財經商業')" class="cat-text-btn" data-cat="財經商業">財經商業</button>
+                        <button onclick="setCategory('趨勢報導')" class="cat-text-btn" data-cat="趨勢報導">趨勢報導</button>
+                    </div>
+                </div>
+
+                <div class="reporter-content-wrap grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8" id="col-grid-small" data-rail-id="latest"></div>
+            </div>
+        </section>
+    </div>
+
+    <div id="detail-view" class="hidden relative z-20 min-h-screen pt-40 md:pt-44 px-6 pb-24">
+        <div class="max-w-4xl mx-auto">
+            <button onclick="goHome(true)" class="detail-back-button flex items-center gap-2 text-[var(--neon-lime)] transition-all mb-10 font-black tracking-widest text-sm uppercase px-5 py-2 rounded-full border border-[var(--neon-lime)]/30">
+                <iconify-icon icon="lucide:arrow-left"></iconify-icon> 返回新聞列表
+            </button>
+            
+            <article class="glass-card p-6 md:p-12 rounded-2xl relative shadow-2xl overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-[var(--neon-lime)] to-[var(--royal-blue)] rounded-t-2xl z-10"></div>
+                
+                <div class="mb-10">
+                    <span id="detail-category" class="inline-block bg-[var(--neon-lime)] text-black px-3 py-1 font-black text-xs tracking-widest uppercase mb-4"></span>
+                    <h1 id="detail-title" class="text-3xl md:text-5xl font-black mb-6 leading-tight"></h1>
+                    <div class="opacity-50 text-sm font-bold tracking-wider" id="detail-date"></div>
+                </div>
+
+                <div id="detail-main-body" class="border-t border-white/10 pt-10 space-y-10"></div>
+            </article>
+
+            <div class="mt-20 border-t border-white/10 pt-16">
+                <div class="flex items-center gap-3 mb-8">
+                    <span class="w-1.5 h-6 bg-[var(--neon-lime)]"></span>
+                    <h3 class="text-2xl font-black italic tracking-tighter uppercase">推薦專欄 / RECOMMENDED</h3>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="detail-recommend-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="glass-nav py-20 px-6 border-t border-white/10 text-center relative z-10">
+        <span class="text-4xl font-black tracking-tighter italic uppercase">兩岸新聞網China-Taiwan Link</span>
+        <p class="opacity-40 text-xs mt-2 uppercase tracking-widest italic">UDN Global Vision Lab / 2026</p>
+    </footer>
+
+    
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        const cursor = document.getElementById('cursor');
+        const flashlight = document.getElementById('flashlight');
+        document.addEventListener('mousemove', (e) => { 
+            gsap.to(cursor, { x: e.clientX, y: e.clientY, duration: 0 }); 
+            gsap.to(flashlight, { x: e.clientX, y: e.clientY, duration: 0.3 }); 
+        });
+
+        function toggleMenu() { document.getElementById('mobile-menu').classList.toggle('translate-x-full'); }
+
+        const DATA_ENDPOINTS = {
+            articles: { api: '/api/articles', fallback: 'data/articles.json' },
+            podcast_episodes: { api: '/api/podcast_episodes', fallback: 'data/podcast_episodes.json' },
+            collaborators: { api: '/api/collaborators', fallback: 'data/collaborators.json' }
+        };
+
+        async function fetchLocalRows(table) {
+            const config = DATA_ENDPOINTS[table];
+            if (!config) throw new Error('Unknown local data table: ' + table);
+            const fallback = await fetch(config.fallback, { headers: { Accept: 'application/json' } });
+            if (fallback.ok) return fallback.json();
+            try {
+                const response = await fetch(config.api, { headers: { Accept: 'application/json' } });
+                if (response.ok) return response.json();
+            } catch (error) {
+                // Static hosting can use the JSON fallback until the API is connected.
+            }
+            throw new Error('Local data request failed: ' + table);
+        }
+
+        async function fetchSupabaseRows(table, params = {}) {
+            return fetchLocalRows(table);
+        }
+
+        let MOCK_DATA = [];
+        let HOME_PODCAST_EPISODES = [];
+        let gridData = [], currentIndex = 0, activeCategory = '全部';
+        let slideIndex = 0, slideTimer;
+        let scrollPosBeforeDetail = 0;
+
+        async function initHomePage() {
+            const gridEl = document.getElementById('col-grid-small');
+            gridEl.innerHTML = '<div class="col-span-full py-20 text-center text-[var(--neon-lime)] font-black text-xl tracking-widest animate-pulse">兩岸直航讀取新聞中...</div>';
+            
+            try {
+                let data = await fetchSupabaseRows('articles', {
+                    select: '*',
+                    published: 'eq.true',
+                    order: 'date.desc'
+                });
+                
+                MOCK_DATA = Array.isArray(data) ? data : (data.data || []);
+                MOCK_DATA = MOCK_DATA.filter(item => item.id && item.title);
+                
+                // 日期排序：最新到最舊
+                MOCK_DATA.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+                if(MOCK_DATA.length === 0) {
+                     gridEl.innerHTML = '<div class="col-span-full py-20 text-center text-white">本地資料目前沒有資料</div>';
+                     return;
+                }
+
+                gridEl.innerHTML = ''; 
+                
+                initHero();
+                buildTop5();
+                applyFilters('全部'); 
+                loadHomePodcastEpisodes().then(renderHomePodcastEpisodes);
+
+                // Hash 路由檢查
+                const hash = window.location.hash;
+                if (hash && hash.startsWith('#id=')) {
+                    const urlId = hash.replace('#id=', '');
+                    const targetItem = MOCK_DATA.find(i => String(i.id) === String(urlId));
+                    if (targetItem) {
+                        openDetail(targetItem, false); 
+                    }
+                }
+
+                // 搜尋框 Enter 鍵綁定
+                const searchInput = document.getElementById('main-search-input');
+                if(searchInput) {
+                    searchInput.addEventListener('keypress', (e) => {
+                        if(e.key === 'Enter') handleMainSearch();
+                    });
+                }
+                const articleSearchInput = document.getElementById('article-search-input');
+                if(articleSearchInput) {
+                    articleSearchInput.addEventListener('keypress', (e) => {
+                        if(e.key === 'Enter') handleMainSearch('article-search-input');
+                    });
+                }
+
+            } catch(e) {
+                console.error("API Fetch Error:", e);
+                gridEl.innerHTML = '<div class="col-span-full py-20 text-center text-red-500 font-bold">無法連線至本地資料</div>';
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initHomePage);
+        } else {
+            initHomePage();
+        }
+
+        async function loadHomePodcastEpisodes() {
+            try {
+                const episodes = await fetchSupabaseRows('podcast_episodes', {
+                    select: '*',
+                    published: 'eq.true',
+                    order: 'date.desc'
+                });
+                const validEpisodes = episodes
+                    .filter(item => item.id && item.title)
+                    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+                const liangAnEpisodes = validEpisodes.filter(item => (item.category || '').trim() === '兩岸01');
+                HOME_PODCAST_EPISODES = (liangAnEpisodes.length ? liangAnEpisodes : validEpisodes).slice(0, 5);
+            } catch (error) {
+                console.error("Podcast API Fetch Error:", error);
+                HOME_PODCAST_EPISODES = [];
+            }
+        }
+
+        function getHomePodcastEpisodeButtonsHTML() {
+            return HOME_PODCAST_EPISODES.length ? HOME_PODCAST_EPISODES.map((episode, index) => `
+                <button type="button" class="reporter-episode-button" onclick="window.location.href='podcast.html#id=${episode.id}'">
+                    ${index + 1}. ${episode.title}
+                </button>
+            `).join('') : `
+                <button type="button" class="reporter-episode-button" onclick="window.location.href='podcast.html'">
+                    前往 Podcast 頁面查看最新集數
+                </button>
+            `;
+        }
+
+        function renderHomePodcastEpisodes() {
+            const list = document.getElementById('reporter-home-episode-buttons');
+            if (list) list.innerHTML = getHomePodcastEpisodeButtonsHTML();
+        }
+
+        function buildTop5() {
+            const list = document.getElementById('top5-list');
+            if(!list) return;
+            const top5 = MOCK_DATA.slice(0, 5); 
+            list.innerHTML = top5.map((item, i) => `
+                <div class="flex gap-4 group/item cursor-pointer" onclick="openDetailById(${item.id})">
+                    <div class="brick-num bg-[${i < 3 ? '#5579e9' : '#737373'}] text-white flex-shrink-0">${i+1}</div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-bold opacity-40 mb-1">${item.date ? String(item.date).substring(0,10) : ''}</span>
+                        <p class="text-sm font-black leading-tight group-hover/item:text-[var(--neon-lime)] transition-colors line-clamp-2">${item.title}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function initHero() {
+            const wrap = document.getElementById('hero-slider-wrap');
+            const items = MOCK_DATA.slice(0, 6); 
+            if(items.length === 0) return;
+
+            const fallbackImage = 'assets/images/placeholder.svg';
+            let featureIndex = 0;
+            const stripText = (value) => String(value || '')
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const truncate = (value, maxLength) => {
+                const text = stripText(value);
+                return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
+            };
+            const sideLabels = [
+                { id: 'featured', label: '兩岸精選', target: 'rail-featured' },
+                { id: 'topics', label: '兩岸議題', target: 'rail-topics' },
+                { id: 'podcast', label: '兩岸播客', target: 'rail-podcast' },
+                { id: 'latest', label: '最新議題', target: 'rail-latest' }
+            ];
+            const buildPicksHTML = (cat = '全部') => {
+                const filteredItems = (cat === '全部' ? MOCK_DATA : MOCK_DATA.filter(item => item.category === cat)).slice(0, 6);
+                if (!filteredItems.length) {
+                    return `<div class="col-span-full py-10 text-center text-gray-400 font-bold">此分類目前沒有文章</div>`;
+                }
+                return filteredItems.map((item) => `
+                    <article class="reporter-pick-card" onclick="openDetailById(${item.id})">
+                        <img src="${item.image_url || fallbackImage}" alt="${item.title || '兩岸新聞'}">
+                        <div class="reporter-category">${item.category || '最新'}</div>
+                        <h3 class="reporter-pick-title line-clamp-3">${item.title}</h3>
+                    </article>
+                `).join('');
+            };
+            const episodeButtonsHTML = getHomePodcastEpisodeButtonsHTML();
+            const podcastHTML = `
+                <section class="reporter-podcast-section" id="rail-podcast" data-rail-id="podcast" aria-label="Podcast 專欄">
+                    <div>
+                        <div class="reporter-podcast-label">PODCAST</div>
+                        <h2 class="reporter-podcast-heading">用聽的掌握兩岸脈絡</h2>
+                    </div>
+                    <div class="reporter-podcast-shows">
+                        <article class="reporter-podcast-card">
+                            <img src="assets/images/img-bc08a0f8926c.webp" alt="兩岸01 節目封面">
+                            <div>
+                                <div class="reporter-podcast-show-label">主打專欄</div>
+                                <h3 class="reporter-podcast-title">兩岸01</h3>
+                                <p class="reporter-podcast-copy">帶您穿透資訊迷霧，深度解析地緣政治、區域安全與政經脈動。</p>
+                                <a class="reporter-podcast-link" href="podcast.html">前往 PODCAST →</a>
+                            </div>
+                        </article>
+                        <article class="reporter-podcast-card secondary">
+                            <img src="assets/images/img-6e723c788549.jpg" alt="合體吧!台灣 節目封面">
+                            <div>
+                                <div class="reporter-podcast-show-label">在地生活</div>
+                                <h3 class="reporter-podcast-title">合體吧!台灣</h3>
+                                <p class="reporter-podcast-copy">從兩岸文化衝擊到在地生活體驗，結合多元視角，帶來真實的社會脈動觀察。</p>
+                                <span class="reporter-podcast-link is-disabled">即將開播</span>
+                            </div>
+                        </article>
+                    </div>
+                    <div class="reporter-episode-list">
+                        <div class="reporter-episode-list-title">集數選擇 / 5 集</div>
+                        <div id="reporter-home-episode-buttons">${episodeButtonsHTML}</div>
+                    </div>
+                </section>
+            `;
+            const railHTML = sideLabels.map((item) => `<button type="button" data-rail-target="${item.target}" data-rail-id="${item.id}">${item.label}</button>`).join('');
+            
+            wrap.innerHTML = `
+                <div class="reporter-hero-grid">
+                    <div>
+                        <div class="reporter-picks" id="rail-featured" data-rail-id="featured">${buildPicksHTML()}</div>
+                        <div class="reporter-feature-row" id="rail-topics" data-rail-id="topics">
+                            <div id="reporter-feature-slot"></div>
+                            <div class="reporter-preview-controls">
+                                <button type="button" class="reporter-preview-button" id="reporter-prev-button" aria-label="上一篇新聞">←</button>
+                                <button type="button" class="reporter-preview-button" id="reporter-next-button" aria-label="下一篇新聞">→</button>
+                            </div>
+                        </div>
+                        ${podcastHTML}
+                    </div>
+                    <aside class="reporter-side-rail" aria-label="編輯分區">${railHTML}</aside>
+                </div>`;
+            const featureSlot = document.getElementById('reporter-feature-slot');
+            const renderFeature = () => {
+                const feature = MOCK_DATA[featureIndex];
+                const featureSummary = truncate(feature.content_1 || feature.content_2 || feature.title, 118);
+                featureSlot.innerHTML = `
+                    <article class="reporter-feature-story" onclick="openDetailById(${feature.id})">
+                        <div class="reporter-feature-kicker">${feature.category || '最新'}</div>
+                        <h2 class="reporter-feature-title">${feature.title}</h2>
+                        <p class="reporter-feature-summary">${featureSummary}</p>
+                        <div class="reporter-feature-meta">${feature.date ? String(feature.date).substring(0, 10) : ''}</div>
+                        <img class="reporter-feature-image" src="${feature.image_url || fallbackImage}" alt="${feature.title || '兩岸新聞'}">
+                    </article>
+                `;
+            };
+            const prevButton = document.getElementById('reporter-prev-button');
+            const nextButton = document.getElementById('reporter-next-button');
+            prevButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                featureIndex = (featureIndex - 1 + MOCK_DATA.length) % MOCK_DATA.length;
+                renderFeature();
+            });
+            nextButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                featureIndex = (featureIndex + 1) % MOCK_DATA.length;
+                renderFeature();
+            });
+            renderFeature();
+            setupSideRailObserver();
+            window.setHeroCategory = (cat) => {
+                document.querySelectorAll('#category-filters .cat-text-btn').forEach(button => {
+                    button.classList.toggle('active', button.dataset.cat === cat);
+                });
+                const picks = document.getElementById('rail-featured');
+                if (picks) picks.innerHTML = buildPicksHTML(cat);
+            };
+                 
+            slideIndex = 0;
+        }
+
+        function setupSideRailObserver() {
+            const buttons = Array.from(document.querySelectorAll('.reporter-side-rail button[data-rail-id]'));
+            const sections = Array.from(document.querySelectorAll('[data-rail-id]')).filter(section => !section.matches('.reporter-side-rail button'));
+            if (!buttons.length || !sections.length) return;
+
+            const setActive = (id) => {
+                buttons.forEach(button => button.classList.toggle('active', button.dataset.railId === id));
+            };
+            const updateActive = () => {
+                const focusLine = window.innerHeight * 0.45;
+                const current = sections.find(section => {
+                    const rect = section.getBoundingClientRect();
+                    return rect.top <= focusLine && rect.bottom >= focusLine;
+                }) || sections.reduce((closest, section) => {
+                    const rect = section.getBoundingClientRect();
+                    const distance = Math.abs(rect.top - focusLine);
+                    return !closest || distance < closest.distance ? { id: section.dataset.railId, distance } : closest;
+                }, null);
+                if (current) setActive(current.dataset ? current.dataset.railId : current.id);
+            };
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const target = document.getElementById(button.dataset.railTarget);
+                    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+            if (window.ctlSideRailHandler) window.removeEventListener('scroll', window.ctlSideRailHandler);
+            window.ctlSideRailHandler = updateActive;
+            window.addEventListener('scroll', updateActive, { passive: true });
+            updateActive();
+        }
+
+        function goToSlide(n) {
+            const slides = document.querySelectorAll('.slide-item');
+            const dots = document.querySelectorAll('.slide-dot');
+            if (!slides.length) return;
+            slides.forEach(s => { s.classList.replace('opacity-100', 'opacity-0'); s.classList.remove('z-10'); });
+            if(dots.length) dots.forEach(d => d.classList.replace('opacity-100', 'opacity-0'));
+            slideIndex = (n + slides.length) % slides.length;
+            slides[slideIndex].classList.replace('opacity-0', 'opacity-100');
+            slides[slideIndex].classList.add('z-10');
+            if(dots.length) dots[slideIndex].classList.replace('opacity-0', 'opacity-100');
+            startSlider();
+        }
+
+        function nextSlide() { goToSlide(slideIndex + 1); }
+        function prevSlide() { goToSlide(slideIndex - 1); }
+        function startSlider() { clearInterval(slideTimer); slideTimer = setInterval(() => nextSlide(), 5000); }
+
+        function handleMainSearch(sourceId = 'main-search-input') {
+            const searchInput = document.getElementById(sourceId);
+            if(!searchInput) return;
+            const keyword = searchInput.value.trim().toLowerCase();
+
+            document.querySelectorAll('#main-search-input, #article-search-input').forEach(input => {
+                if (input.id !== sourceId) input.value = searchInput.value;
+            });
+            applyFilters(activeCategory);
+
+            const container = document.getElementById('col-grid-small');
+            const offsetTop = container.parentElement.offsetTop;
+            if(offsetTop) window.scrollTo({ top: offsetTop - 100, behavior: 'smooth' });
+        }
+
+        function setCategory(cat) {
+            activeCategory = cat;
+            document.querySelectorAll('.article-filter-cats .cat-text-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+            applyFilters(cat);
+        }
+
+        function applyFilters(cat) {
+            const keyword = ((document.getElementById('article-search-input') || document.getElementById('main-search-input'))?.value || '').trim().toLowerCase();
+            gridData = MOCK_DATA.filter(item => {
+                const matchesCategory = cat === '全部' || item.category === cat;
+                const text = `${item.title || ''} ${item.category || ''} ${item.content_1 || ''} ${item.content_2 || ''}`.toLowerCase();
+                return matchesCategory && (!keyword || text.includes(keyword));
+            });
+            const container = document.getElementById('col-grid-small');
+            container.innerHTML = '';
+            currentIndex = 0;
+            if (gridData.length === 0) {
+                const label = keyword ? `「${keyword}」` : cat;
+                container.innerHTML = `<div class="col-span-full py-20 text-center text-gray-400 font-bold text-xl">找不到符合 ${label} 的文章</div>`;
+                return;
+            }
+            loadMore();
+        }
+
+        function loadMore() {
+            const container = document.getElementById('col-grid-small');
+            const nextBatch = gridData.slice(currentIndex, currentIndex + 9);
+            nextBatch.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `glass-card relative group reveal aspect-[4/3] md:aspect-auto md:h-[360px] cursor-pointer`;
+                card.style.opacity = '1';
+                card.style.transform = 'none';
+                const displayDate = item.date ? String(item.date).substring(0, 10) : '';
+                card.innerHTML = `
+                    <img src="${item.image_url || 'assets/images/placeholder.svg'}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent p-8 flex flex-col justify-end z-10">
+                        <span class="article-card-category font-black text-[10px] tracking-widest mb-1 uppercase">${item.category || '未分類'}</span>
+                        <h4 class="article-card-title text-xl transition-colors line-clamp-2">${item.title}</h4>
+                        <div class="mt-4 pt-4 border-t border-white/10 flex justify-between items-center text-[10px] opacity-40 font-bold">
+                            <span>PUB DATE: ${displayDate}</span>
+                            <span class="text-[var(--neon-lime)]">READ MORE ➔</span>
+                        </div>
+                    </div>`;
+                card.onclick = () => openDetail(item);
+                container.appendChild(card);
+            });
+            currentIndex += 9;
+            if (window.gsap) {
+                gsap.utils.toArray('.reveal').forEach(e => gsap.to(e, { scrollTrigger: e, y: 0, opacity: 1, duration: 1 }));
+            }
+        }
+
+        function openDetailById(id) {
+            const item = MOCK_DATA.find(i => String(i.id) === String(id));
+            if (item) openDetail(item);
+        }
+
+        function formatContent(text) {
+            if(!text) return '';
+            const str = String(text).trim();
+            if(str.startsWith('<')) return str;
+            return str.split(/\r?\n/).map(line => line.trim() ? `<p class="mb-6">${line}</p>` : '').join('');
+        }
+
+        function openDetail(item, pushState = true) {
+            if (pushState) {
+                try {
+                    window.history.pushState(null, '', '#id=' + item.id);
+                } catch(e) { 
+                    window.location.hash = 'id=' + item.id;
+                }
+            }
+            
+            if(document.getElementById('main-wrap').classList.contains('hidden') === false) {
+                scrollPosBeforeDetail = window.scrollY;
+            }
+            
+            document.getElementById('detail-category').innerText = item.category || '最新';
+            document.getElementById('detail-title').innerText = item.title;
+            document.getElementById('detail-date').innerText = "發佈時間：" + (item.date ? String(item.date).substring(0, 10) : '');
+            
+            let htmlParts = [];
+            
+            // 主圖 (大圖) -> 靠左排版 (text-left)
+            if(item.image_url) {
+                htmlParts.push(`
+                    <div class="mb-10 group">
+                        <div class="overflow-hidden rounded-xl border border-white/10">
+                            <img src="${item.image_url}" class="w-full aspect-[4/3] md:aspect-auto md:h-[500px] object-cover transition-transform duration-700 group-hover:scale-105">
+                        </div>
+                        ${item.image_source ? `<p class="text-left text-[11px] text-[var(--neon-lime)] mt-3 font-bold tracking-widest uppercase">${item.image_source}</p>` : ''}
+                    </div>
+                `);
+            }
+            
+            if(item.content_1) htmlParts.push(`<div class="article-content mb-12 text-gray-300 leading-relaxed text-lg">${formatContent(item.content_1)}</div>`);
+            
+            // 內容圖 1 -> 靠左排版 (text-left)
+            if(item.content_img1_url) {
+                htmlParts.push(`
+                    <div class="mb-10 group relative md:px-10">
+                        <div class="overflow-hidden rounded-xl border border-white/10 shadow-lg">
+                            <img src="${item.content_img1_url}" class="w-full aspect-[4/3] md:aspect-auto md:h-[400px] object-cover transition-transform duration-700 group-hover:scale-105">
+                        </div>
+                        ${item.content_img1_source ? `<p class="text-left text-[11px] text-[var(--neon-lime)] mt-3 font-bold tracking-widest uppercase md:ml-10">${item.content_img1_source}</p>` : ''}
+                    </div>
+                `);
+            }
+            
+            if(item.content_2) htmlParts.push(`<div class="article-content mb-12 text-gray-300 leading-relaxed text-lg">${formatContent(item.content_2)}</div>`);
+            
+            // 內容圖 2 -> 靠左排版 (text-left)
+            if(item.content_img2_url) {
+                htmlParts.push(`
+                    <div class="mb-10 group relative md:px-10">
+                        <div class="overflow-hidden rounded-xl border border-white/10 shadow-lg">
+                            <img src="${item.content_img2_url}" class="w-full aspect-[4/3] md:aspect-auto md:h-[400px] object-cover transition-transform duration-700 group-hover:scale-105">
+                        </div>
+                        ${item.content_img2_source ? `<p class="text-left text-[11px] text-[var(--neon-lime)] mt-3 font-bold tracking-widest uppercase md:ml-10">${item.content_img2_source}</p>` : ''}
+                    </div>
+                `);
+            }
+            
+            if(item.content_3) htmlParts.push(`<div class="article-content mb-12 text-gray-300 leading-relaxed text-lg">${formatContent(item.content_3)}</div>`);
+            
+            document.getElementById('detail-main-body').innerHTML = htmlParts.join('');
+
+            renderRecommendations(item.id);
+            document.getElementById('main-wrap').classList.add('hidden');
+            document.getElementById('detail-view').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+
+        function renderRecommendations(currentId) {
+            const recGrid = document.getElementById('detail-recommend-grid');
+            recGrid.innerHTML = '';
+            const recs = MOCK_DATA.filter(i => String(i.id) !== String(currentId)).sort(() => 0.5 - Math.random()).slice(0, 3);
+            recs.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `glass-card relative group aspect-[4/3] md:aspect-auto md:h-[280px] rounded-xl cursor-pointer overflow-hidden border border-white/10`;
+                card.innerHTML = `
+                    <img src="${item.image_url || 'assets/images/placeholder.svg'}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent p-6 flex flex-col justify-end z-10">
+                        <span class="article-card-category font-black text-[10px] tracking-widest mb-1 uppercase">${item.category}</span>
+                        <h4 class="article-card-title text-lg transition-colors leading-tight line-clamp-2">${item.title}</h4>
+                    </div>`;
+                card.onclick = () => openDetail(item); 
+                recGrid.appendChild(card);
+            });
+        }
+
+        function goHome(pushState = true) {
+            if (pushState) {
+                try {
+                    window.history.pushState(null, '', window.location.pathname + window.location.search);
+                } catch(e) {
+                    history.replaceState(null, null, ' ');
+                }
+            }
+            document.getElementById('detail-view').classList.add('hidden');
+            document.getElementById('main-wrap').classList.remove('hidden');
+            window.scrollTo({ top: scrollPosBeforeDetail, behavior: 'auto' });
+        }
+
+        window.addEventListener('popstate', () => {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#id=')) {
+                const urlId = hash.replace('#id=', '');
+                const targetItem = MOCK_DATA.find(i => String(i.id) === String(urlId));
+                if (targetItem) openDetail(targetItem, false);
+            } else {
+                goHome(false);
+            }
+        });
+
+        window.addEventListener('scroll', () => { 
+            if (document.getElementById('main-wrap').classList.contains('hidden')) return;
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) loadMore(); 
+        });
+    </script>
+
+</body>
+</html>

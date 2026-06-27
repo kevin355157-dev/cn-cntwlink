@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Podcast 中國友善檢查儀表板</title>
+  <style>
+    :root {
+      --blue: #5579e9;
+      --ink: #191919;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --ok: #15a36b;
+      --warn: #b7791f;
+      --bg: #f7f8fb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 56px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); line-height: 1.12; }
+    .subtitle { margin: 0 0 28px; color: var(--muted); line-height: 1.7; }
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .card, .panel { background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+    .card { padding: 18px; }
+    .label { color: var(--muted); font-size: 13px; font-weight: 700; }
+    .value { margin-top: 8px; font-size: 34px; font-weight: 900; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .panel { padding: 20px; margin-top: 16px; }
+    .panel h2 { margin: 0 0 14px; font-size: 20px; }
+    .bar-row { display: grid; grid-template-columns: 140px 1fr 52px; gap: 12px; align-items: center; margin: 10px 0; }
+    .bar-track { height: 14px; background: #eef2ff; border-radius: 999px; overflow: hidden; }
+    .bar { height: 100%; background: var(--blue); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .pill { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; background: #e8fff4; color: var(--ok); }
+    .pill.warn { background: #fff7df; color: var(--warn); }
+    @media (max-width: 760px) {
+      .cards { grid-template-columns: 1fr 1fr; }
+      .bar-row { grid-template-columns: 1fr; gap: 6px; }
+      table { font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Podcast 中國友善檢查儀表板</h1>
+    <p class="subtitle">檢查範圍：<code>podcast.html</code> 與 <code>data/podcast_episodes.json</code>。重點是外部播放器、外部網址與本地圖片完整度。</p>
+
+    <section class="cards" aria-label="檢查摘要">
+      <div class="card"><div class="label">Podcast 集數</div><div class="value" id="episode-count">-</div></div>
+      <div class="card"><div class="label">外部播放網址</div><div class="value ok" id="embed-count">-</div></div>
+      <div class="card"><div class="label">外部 URL</div><div class="value ok" id="external-count">-</div></div>
+      <div class="card"><div class="label">缺少圖片</div><div class="value ok" id="missing-count">-</div></div>
+    </section>
+
+    <section class="panel">
+      <h2>分類分布</h2>
+      <div id="category-bars"></div>
+    </section>
+
+    <section class="panel">
+      <h2>中國區開啟評估</h2>
+      <table>
+        <tbody>
+          <tr><th>頁面開啟</th><td><span class="pill">可做中國友善靜態頁</span></td><td>Podcast 頁面目前使用本地 JSON 與本地圖片，不依賴 Apple、Spotify、YouTube iframe。</td></tr>
+          <tr><th>音訊播放</th><td><span class="pill warn">尚未接音訊</span></td><td>目前沒有本地 MP3/M4A，也沒有中國可用音訊源；只能看節目資料與文字。</td></tr>
+          <tr><th>上線風險</th><td><span class="pill warn">看主機與網域</span></td><td>如果只放 Cloudflare Pages，可開啟性不保證；若要更穩定，需評估中國可達 CDN、備案或中國區主機。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>集數清單</h2>
+      <table>
+        <thead><tr><th>ID</th><th>分類</th><th>標題</th><th>圖片</th><th>播放網址</th></tr></thead>
+        <tbody id="episode-table"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    async function init() {
+      const episodes = await fetch('data/podcast_episodes.json').then(r => r.json());
+      const externalUrls = JSON.stringify(episodes).match(/https?:\/\//g) || [];
+      const embeds = episodes.filter(ep => ep.embed_url && ep.embed_url.trim());
+      const missingImages = episodes.filter(ep => !ep.image_url);
+      document.getElementById('episode-count').textContent = episodes.length;
+      document.getElementById('embed-count').textContent = embeds.length;
+      document.getElementById('external-count').textContent = externalUrls.length;
+      document.getElementById('missing-count').textContent = missingImages.length;
+
+      const counts = episodes.reduce((acc, ep) => {
+        const key = ep.category || '未分類';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      const max = Math.max(...Object.values(counts), 1);
+      document.getElementById('category-bars').innerHTML = Object.entries(counts).map(([name, count]) => `
+        <div class="bar-row">
+          <strong>${name}</strong>
+          <div class="bar-track"><div class="bar" style="width:${Math.round(count / max * 100)}%"></div></div>
+          <span>${count} 集</span>
+        </div>
+      `).join('');
+
+      document.getElementById('episode-table').innerHTML = episodes.map(ep => `
+        <tr>
+          <td>${ep.id}</td>
+          <td>${ep.category || ''}</td>
+          <td>${ep.title || ''}</td>
+          <td>${ep.image_url ? '<span class="pill">本地圖片</span>' : '<span class="pill warn">缺少</span>'}</td>
+          <td>${ep.embed_url ? '<span class="pill warn">外部</span>' : '<span class="pill">無外部播放器</span>'}</td>
+        </tr>
+      `).join('');
+    }
+    init().catch(error => {
+      document.body.insertAdjacentHTML('beforeend', '<pre>' + String(error) + '</pre>');
+    });
+  </script>
+</body>
+</html>

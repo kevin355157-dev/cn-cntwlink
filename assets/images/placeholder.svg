@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#eef2f7"/>
+  <rect x="80" y="80" width="1040" height="640" rx="24" fill="#ffffff" stroke="#5579e9" stroke-width="8"/>
+  <text x="600" y="360" text-anchor="middle" font-family="Arial, sans-serif" font-size="72" font-weight="700" fill="#5579e9">兩岸新聞網</text>
+  <text x="600" y="450" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" fill="#5d6d7e">China-Taiwan Link</text>
+</svg>

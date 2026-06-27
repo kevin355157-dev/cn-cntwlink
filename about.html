@@ -1,0 +1,784 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="assets/images/img-2a633f4d5a24.png" type="image/png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>兩岸新聞網 | 關於我們</title>
+    
+    <script src="assets/vendor/tailwindcss.local.js"></script>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/vendor/ScrollTrigger.min.js"></script>
+    <script src="assets/vendor/local-icons.js"></script>
+    <script>
+    (function () {
+        'use strict';
+    
+        var STORAGE_KEY = 'ctl-language';
+        var LANG_TRADITIONAL = 'zh-Hant';
+        var LANG_SIMPLIFIED = 'zh-Hans';
+        var LANG_ENGLISH = 'en';
+        var LANGUAGE_ORDER = [LANG_TRADITIONAL, LANG_SIMPLIFIED, LANG_ENGLISH];
+        var originalTexts = new WeakMap();
+        var originalAttrs = new WeakMap();
+        var englishCache = new Map();
+        var originalDocumentTitle = document.title || '';
+        var isApplying = false;
+        var observerResumeTimer = null;
+    
+        var storage = {
+            get: function () {
+                try {
+                    return localStorage.getItem(STORAGE_KEY);
+                } catch (error) {
+                    return null;
+                }
+            },
+            set: function (value) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, value);
+                } catch (error) {
+                    // Keep the current-page switch working even when storage is blocked.
+                }
+            }
+        };
+    
+        var currentLang = storage.get() || LANG_TRADITIONAL;
+        if (LANGUAGE_ORDER.indexOf(currentLang) === -1) currentLang = LANG_TRADITIONAL;
+    
+        var phraseMap = [
+            ['\u5169\u5cb8\u65b0\u805e\u7db2', '\u4e24\u5cb8\u65b0\u95fb\u7f51'],
+            ['\u5169\u5cb8\u65b0\u805e', '\u4e24\u5cb8\u65b0\u95fb'],
+            ['\u5169\u5cb8\u95dc\u4fc2', '\u4e24\u5cb8\u5173\u7cfb'],
+            ['\u5169\u5cb8\u6642\u4e8b', '\u4e24\u5cb8\u65f6\u4e8b'],
+            ['\u5169\u5cb8\u5408\u9ad4', '\u4e24\u5cb8\u5408\u4f53'],
+            ['\u95dc\u65bc\u6211\u5011', '\u5173\u4e8e\u6211\u4eec'],
+            ['\u806f\u7d61\u6211\u5011', '\u8054\u7edc\u6211\u4eec'],
+            ['\u5408\u9ad4\u8005', '\u5408\u4f53\u8005'],
+            ['\u9996\u9801', '\u9996\u9875'],
+            ['\u641c\u5c0b', '\u641c\u7d22'],
+            ['\u5c08\u6b04', '\u4e13\u680f'],
+            ['\u5c08\u984c', '\u4e13\u9898'],
+            ['\u5c08\u6ce8', '\u4e13\u6ce8'],
+            ['\u7368\u7acb\u5b78\u8005', '\u72ec\u7acb\u5b66\u8005'],
+            ['\u7368\u7acb\u89c0\u5bdf', '\u72ec\u7acb\u89c2\u5bdf'],
+            ['\u8de8\u57df\u8996\u89d2', '\u8de8\u57df\u89c6\u89d2'],
+            ['\u771f\u5be6\u8108\u7d61', '\u771f\u5b9e\u8109\u7edc'],
+            ['\u601d\u60f3\u76f4\u822a', '\u601d\u60f3\u76f4\u822a'],
+            ['\u6d88\u5f2d\u504f\u898b', '\u6d88\u5f2d\u504f\u89c1'],
+            ['\u591a\u7dad\u5ea6', '\u591a\u7ef4\u5ea6'],
+            ['\u65b0\u7a81\u7834', '\u65b0\u7a81\u7834'],
+            ['\u7d93\u8cbf\u8ad6\u58c7', '\u7ecf\u8d38\u8bba\u575b'],
+            ['\u53f0\u7a4d\u96fb', '\u53f0\u79ef\u7535'],
+            ['\u79d1\u6280\u677f\u584a', '\u79d1\u6280\u677f\u5757'],
+            ['\u8cc7\u6599\u5eab', '\u6570\u636e\u5e93'],
+            ['\u96f2\u7aef', '\u4e91\u7aef'],
+            ['\u7121\u6cd5\u9023\u7dda', '\u65e0\u6cd5\u8fde\u7ebf'],
+            ['\u76ee\u524d\u6c92\u6709\u8cc7\u6599', '\u76ee\u524d\u6ca1\u6709\u6570\u636e'],
+            ['\u767c\u4f48\u6642\u9593', '\u53d1\u5e03\u65f6\u95f4'],
+            ['\u4e0a\u7dda\u6642\u9593', '\u4e0a\u7ebf\u65f6\u95f4'],
+            ['\u63a8\u85a6\u5c08\u6b04', '\u63a8\u8350\u4e13\u680f'],
+            ['\u5ee3\u64ad\u7bc0\u76ee', '\u5e7f\u64ad\u8282\u76ee'],
+            ['\u7bc0\u76ee\u4ecb\u7d39', '\u8282\u76ee\u4ecb\u7ecd'],
+            ['\u7cbe\u9078\u96c6\u6578', '\u7cbe\u9009\u96c6\u6570'],
+            ['\u806f\u7d61', '\u8054\u7edc'],
+            ['\u89c0\u5bdf', '\u89c2\u5bdf'],
+            ['\u5be6\u9a57', '\u5b9e\u9a8c'],
+            ['\u7bc0\u9ede', '\u8282\u70b9'],
+            ['\u78ba\u8a8d\u767c\u9001', '\u786e\u8ba4\u53d1\u9001'],
+            ['\u50b3\u9001\u8a0a\u606f', '\u4f20\u9001\u8baf\u606f'],
+            ['\u7e41\u9ad4\u4e2d\u6587', '\u7e41\u4f53\u4e2d\u6587'],
+            ['\u7c21\u9ad4\u4e2d\u6587', '\u7b80\u4f53\u4e2d\u6587']
+        ];
+    
+        var charMap = {
+            '\u5169': '\u4e24', '\u95dc': '\u5173', '\u65bc': '\u4e8e', '\u5011': '\u4eec',
+            '\u806f': '\u8054', '\u7d61': '\u7edc', '\u7db2': '\u7f51', '\u805e': '\u95fb',
+            '\u9ad4': '\u4f53', '\u9801': '\u9875', '\u7c21': '\u7b80', '\u5c08': '\u4e13',
+            '\u6ce8': '\u6ce8', '\u8a55': '\u8bc4', '\u8ad6': '\u8bba', '\u7368': '\u72ec',
+            '\u5b78': '\u5b66', '\u8996': '\u89c6', '\u5be6': '\u5b9e', '\u8108': '\u8109',
+            '\u95a1': '\u9602', '\u8b5c': '\u8c31', '\u5e36': '\u5e26', '\u898b': '\u89c1',
+            '\u69cb': '\u6784', '\u7dad': '\u7ef4', '\u8207': '\u4e0e', '\u4fc2': '\u7cfb',
+            '\u7d93': '\u7ecf', '\u8cbf': '\u8d38', '\u58c7': '\u575b', '\u65bc': '\u4e8e',
+            '\u5834': '\u573a', '\u7a4d': '\u79ef', '\u96fb': '\u7535', '\u6703': '\u4f1a',
+            '\u512a': '\u4f18', '\u9810': '\u9884', '\u52d5': '\u52a8', '\u584a': '\u5757',
+            '\u7d05': '\u7ea2', '\u8cc7': '\u8d44', '\u5eab': '\u5e93', '\u8f09': '\u8f7d',
+            '\u7dda': '\u7ebf', '\u96f2': '\u4e91', '\u7121': '\u65e0', '\u932f': '\u9519',
+            '\u8aa4': '\u8bef', '\u985e': '\u7c7b', '\u767c': '\u53d1', '\u4f48': '\u5e03',
+            '\u6642': '\u65f6', '\u9593': '\u95f4', '\u85a6': '\u8350', '\u6b04': '\u680f',
+            '\u5340': '\u533a', '\u8ecd': '\u519b', '\u6578': '\u6570', '\u8f49': '\u8f6c',
+            '\u89c0': '\u89c2', '\u7bc4': '\u8303', '\u7587': '\u7574', '\u5c0e': '\u5bfc',
+            '\u8a0a': '\u8baf', '\u50b3': '\u4f20', '\u78ba': '\u786e', '\u8a8d': '\u8ba4',
+            '\u7bc0': '\u8282', '\u9ede': '\u70b9', '\u5ee3': '\u5e7f', '\u9078': '\u9009',
+            '\u8ab2': '\u8bfe', '\u984c': '\u9898', '\u5beb': '\u5199', '\u50f9': '\u4ef7',
+            '\u908f': '\u903b', '\u8f2f': '\u8f91', '\u8ca0': '\u8d1f', '\u8cac': '\u8d23',
+            '\u56b4': '\u4e25', '\u8b39': '\u8c28', '\u790e': '\u7840', '\u5f59': '\u6c47',
+            '\u5354': '\u534f', '\u81fa': '\u53f0', '\u7063': '\u6e7e', '\u83ef': '\u534e',
+            '\u570b': '\u56fd', '\u55ae': '\u5355', '\u958b': '\u5f00', '\u9589': '\u95ed',
+            '\u6a19': '\u6807', '\u7c64': '\u7b7e', '\u8072': '\u58f0', '\u61c9': '\u5e94',
+            '\u8a72': '\u8be5', '\u842c': '\u4e07', '\u6771': '\u4e1c', '\u4e9e': '\u4e9a',
+            '\u6b50': '\u6b27', '\u8607': '\u82cf', '\u6230': '\u6218', '\u5831': '\u62a5',
+            '\u8b80': '\u8bfb', '\u807d': '\u542c', '\u5167': '\u5185', '\u5716': '\u56fe',
+            '\u5e73': '\u5e73', '\u4e7e': '\u5e72'
+        };
+    
+        var englishPhraseMap = [
+            ['\u5169\u5cb8\u65b0\u805e\u7db2 | China-Taiwan Link', 'China-Taiwan Link'],
+            ['\u5169\u5cb8\u65b0\u805e\u7db2China-Taiwan Link', 'China-Taiwan Link'],
+            ['\u5169\u5cb8\u65b0\u805e\u7db2', 'China-Taiwan Link'],
+            ['\u5169\u5cb8\u65b0\u805e', 'Cross-Strait News'],
+            ['\u95dc\u65bc\u6211\u5011', 'About'],
+            ['\u806f\u7d61\u6211\u5011', 'Contact'],
+            ['\u806f\u7d61', 'Contact'],
+            ['\u5408\u9ad4\u8005', 'Collaborators'],
+            ['\u9996\u9801HOME', 'HOME'],
+            ['\u9996\u9801', 'Home'],
+            ['\u641c\u5c0b\u5c08\u6b04...', 'Search columns...'],
+            ['\u641c\u5c0b\u96c6\u6578...', 'Search episodes...'],
+            ['\u641c\u5c0b', 'Search'],
+            ['\u5169\u5cb8\u65b0\u805e TOP5', 'Cross-Strait News TOP 5'],
+            ['\u63a8\u85a6\u5c08\u6b04 / RECOMMENDED', 'Recommended'],
+            ['\u8fd4\u56de\u65b0\u805e\u5217\u8868', 'Back to news'],
+            ['\u8fd4\u56de\u7bc0\u76ee\u5217\u8868', 'Back to episodes'],
+            ['\u767c\u4f48\u6642\u9593\uff1a', 'Published: '],
+            ['\u4e0a\u7dda\u6642\u9593\uff1a', 'Published: '],
+            ['\u5169\u5cb8\u76f4\u822a\u540c\u6b65\u65b0\u805e\u4e2d...', 'Loading cross-strait news...'],
+            ['\u6b63\u5728\u540c\u6b65\u96f2\u7aef\u8cc7\u6599\u5eab...', 'Loading local data...'],
+            ['\u96f2\u7aef\u8cc7\u6599\u5eab\u76ee\u524d\u6c92\u6709\u8cc7\u6599', 'No data in the cloud database yet'],
+            ['\u7121\u6cd5\u9023\u7dda\u81f3\u96f2\u7aef\u8cc7\u6599\u5eab', 'Unable to load local data'],
+            ['\u627e\u4e0d\u5230\u7b26\u5408\u689d\u4ef6\u7684\u96c6\u6578', 'No matching episodes found'],
+            ['\u5c1a\u7121\u8a73\u7d30\u5167\u5bb9', 'No detailed content yet'],
+            ['\u5169\u5cb8\u65b0\u805e\u7db2\u5c08\u6ce8\u6df1\u5ea6\u8a55\u8ad6\u5169\u5cb8\u6642\u4e8b\uff0c\u7531\u7368\u7acb\u5b78\u8005\u4ee5\u8de8\u57df\u8996\u89d2\u9084\u539f\u771f\u5be6\u8108\u7d61 | \u62c6\u89e3\u9694\u95a1\uff0c\u601d\u60f3\u76f4\u822a\uff1b\u5169\u5cb8\u5408\u9ad4\uff0c\u5171\u8b5c\u65b0\u7ae0\u3002\u5e36\u60a8\u6d88\u5f2d\u504f\u898b\uff0c\u91cd\u69cb\u591a\u7dad\u5ea6\u7684\u601d\u8003\u9aa8\u67b6\u3002', 'China-Taiwan Link delivers in-depth cross-strait commentary from independent scholars, rebuilding context through interdisciplinary perspectives.'],
+            ['\u3010\u5feb\u8a0a\u3011\u5169\u5cb8\u95dc\u4fc2\u65b0\u7a81\u7834\uff0c\u7d93\u8cbf\u8ad6\u58c7\u65bc\u4e0a\u6d77\u767b\u5834\u3002\uff0f\u3010\u5feb\u8a0a\u3011\u53f0\u7a4d\u96fb\u6cd5\u8aaa\u6703\u512a\u65bc\u9810\u671f\uff0c\u5e36\u52d5\u53f0\u80a1\u79d1\u6280\u677f\u584a\u5168\u9762\u7ffb\u7d05\u3002', 'Breaking: Cross-strait relations see new momentum as a trade forum opens in Shanghai. / TSMC guidance beats expectations, lifting Taiwan tech stocks.'],
+            ['\u6e1b\u5c11\u885d\u7a81\u53ca\u722d\u8b70\uff0c\u662f\u6211\u5011\u532f\u805a\u65bc\u6b64\u7684\u552f\u4e00\u76ee\u7684\u3002', 'Reducing conflict and dispute is the reason we gather here.'],
+            ['\u6211\u5011\u662f\u4f86\u81ea\u5404\u500b\u9818\u57df\u7684\u7368\u7acb\u5b78\u8005\uff0c\u81f4\u529b\u65bc\u900f\u904e\u6df1\u5ea6\u5c08\u6848\u8207\u5c08\u696d\u7684\u5169\u5cb8\u5b78\u8853\u8a55\u8ad6\uff0c\u5728\u5435\u96dc\u7684\u6642\u4ee3\u4e2d\u9084\u539f\u771f\u5be6\u7684\u8108\u7d61\u3002', 'We are independent scholars from different fields, using deep projects and professional cross-strait analysis to restore context in a noisy era.'],
+            ['\u7368\u7acb\u5718\u9ad4', 'Independent Collective'],
+            ['\u5c08\u984c\u5831\u5c0e', 'Feature Reporting'],
+            ['\u8de8\u9818\u57df\u5408\u9ad4', 'Interdisciplinary Collaboration'],
+            ['Mission / \u6211\u5011\u7684\u6838\u5fc3\u4efb\u52d9', 'Mission'],
+            ['Fields / \u5c08\u7cbe\u7bc4\u7587', 'Fields'],
+            ['\u5340\u57df\u5b89\u5168 Security', 'Regional Security'],
+            ['\u5730\u7de3\u653f\u6cbb Geopolitics', 'Geopolitics'],
+            ['\u8ecd\u4e8b\u79d1\u6280 Military Tech', 'Military Tech'],
+            ['\u6578\u4f4d\u8f49\u578b Digitalization', 'Digitalization'],
+            ['\u91d1\u878d\u89c0\u5bdf Finance', 'Finance'],
+            ['\u62c6\u89e3\u9694\u95a1\uff0c\u601d\u60f3\u76f4\u822a\uff1b', 'Decode barriers. Think directly.'],
+            ['\u5169\u5cb8\u5408\u9ad4\uff0c\u5171\u8b5c\u65b0\u7ae0\u3002', 'Build a new cross-strait chapter.'],
+            ['\u5efa\u7acb', 'Build'],
+            ['\u89c0\u5bdf\u7bc0\u9ede.', 'Observation Node.'],
+            ['\u958b\u59cb\u8de8\u57df\u5408\u9ad4', 'Start an interdisciplinary exchange'],
+            ['\u50b3\u9001\u8a0a\u606f', 'Send Message'],
+            ['\u78ba\u8a8d\u767c\u9001 TRANSMIT', 'TRANSMIT'],
+            ['\u6211\u5011\u671f\u5f85\u8207\u7368\u7acb\u601d\u8003\u8005\u3001\u8de8\u57df\u5c08\u5bb6\u9032\u884c\u6df1\u5ea6\u4ea4\u6d41\u3002', 'We welcome thoughtful exchanges with independent thinkers and interdisciplinary experts.'],
+            ['\u7121\u8ad6\u662f\u60c5\u5831\u63d0\u4f9b\u3001\u5c08\u984c\u5408\u4f5c\uff0c\u6216\u662f\u55ae\u7d14\u7684\u7406\u5ff5\u78b0\u649e\uff0c\u8acb\u8b93\u6211\u5011\u77e5\u9053\u4f60\u7684\u60f3\u6cd5\u3002', 'Whether it is a tip, collaboration, or a conversation, tell us what you are thinking.'],
+            ['\u59d3\u540d Name', 'Name'],
+            ['\u4fe1\u7bb1 Email', 'Email'],
+            ['\u4e3b\u65e8 Subject', 'Subject'],
+            ['\u5167\u5bb9 Message', 'Message'],
+            ['PODCAST \u5ee3\u64ad\u7bc0\u76ee', 'Podcast'],
+            ['\u7bc0\u76ee\u4ecb\u7d39 / SHOWS', 'Shows'],
+            ['\u5408\u9ad4\u8005 / HOSTS', 'Hosts'],
+            ['\u7cbe\u9078\u96c6\u6578 / FEATURED EPISODES', 'Featured Episodes'],
+            ['\u8f09\u5165\u66f4\u591a / LOAD MORE', 'Load More'],
+            ['\u4e3b\u6253\u5c08\u6b04', 'Featured Column'],
+            ['\u5728\u5730\u751f\u6d3b', 'Local Life'],
+            ['\u5408\u9ad4\u8005\uff1a\u9023\u7d50\u5169\u5cb8\u3001\u8de8\u8d8a\u7586\u754c\u7684\u89c0\u5bdf\u5bb6', 'Collaborators: observers connecting both sides across boundaries'],
+            ['\u8cc7\u6599\u50b3\u8f38\u4e2d\u65b7', 'Data transmission interrupted'],
+            ['\u8acb\u78ba\u8a8d API \u6b0a\u9650\u6216\u7a0d\u5f8c\u518d\u8a66', 'Please check API permissions or try again later'],
+            ['\u5c08\u6ce8\u6df1\u5ea6\u8a55\u8ad6\u5169\u5cb8\u6642\u4e8b', 'In-depth cross-strait commentary'],
+            ['\u7368\u7acb\u5b78\u8005', 'independent scholars'],
+            ['\u8de8\u57df\u8996\u89d2', 'interdisciplinary perspectives'],
+            ['\u771f\u5be6\u8108\u7d61', 'real context'],
+            ['\u8cc7\u6599\u5eab', 'database'],
+            ['\u5c08\u6b04', 'column'],
+            ['\u672a\u5206\u985e', 'Uncategorized'],
+            ['\u6700\u65b0', 'Latest']
+        ];
+    
+        function toSimplified(text) {
+            var output = text;
+            phraseMap.forEach(function (pair) {
+                output = output.split(pair[0]).join(pair[1]);
+            });
+            return Array.from(output).map(function (char) {
+                return charMap[char] || char;
+            }).join('');
+        }
+    
+        function toEnglish(text) {
+            var output = text;
+            englishPhraseMap.forEach(function (pair) {
+                output = output.split(pair[0]).join(pair[1]);
+            });
+            return output;
+        }
+    
+        function hasCjk(text) {
+            return /[\u3400-\u9fff]/.test(text);
+        }
+    
+        function shouldMachineTranslate(text) {
+            return false;
+        }
+    
+        function cacheKey(text) {
+            var hash = 0;
+            for (var i = 0; i < text.length; i += 1) {
+                hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+            }
+            return 'ctl-en-' + Math.abs(hash) + '-' + text.length;
+        }
+    
+        function readCachedEnglish(text) {
+            var key = cacheKey(text);
+            if (englishCache.has(key)) return englishCache.get(key);
+    
+            try {
+                var stored = sessionStorage.getItem(key);
+                if (stored) {
+                    englishCache.set(key, stored);
+                    return stored;
+                }
+            } catch (error) {
+                // Session storage is an optimization only.
+            }
+    
+            return null;
+        }
+    
+        function writeCachedEnglish(text, translated) {
+            var key = cacheKey(text);
+            englishCache.set(key, translated);
+            try {
+                sessionStorage.setItem(key, translated);
+            } catch (error) {
+                // Ignore storage quota or privacy-mode failures.
+            }
+        }
+    
+        function pauseObserverForDomWrite() {
+            if (observerResumeTimer) clearTimeout(observerResumeTimer);
+            isApplying = true;
+            observerResumeTimer = setTimeout(function () {
+                isApplying = false;
+            }, 0);
+        }
+    
+        function fetchGoogleTranslation(text) {
+            return Promise.resolve('');
+        }
+    
+        function fetchFallbackTranslation(text) {
+            return Promise.resolve('');
+        }
+    
+        function translateEnglishChunk(text) {
+            return Promise.resolve('');
+        }
+    
+        function splitTranslationText(text) {
+            var chunks = [];
+            var remaining = text;
+            var maxLength = 900;
+    
+            while (remaining.length > maxLength) {
+                var slice = remaining.slice(0, maxLength);
+                var breakAt = Math.max(
+                    slice.lastIndexOf('\u3002'),
+                    slice.lastIndexOf('\uff01'),
+                    slice.lastIndexOf('\uff1f'),
+                    slice.lastIndexOf('\n'),
+                    slice.lastIndexOf(' ')
+                );
+    
+                if (breakAt < 300) breakAt = maxLength;
+                chunks.push(remaining.slice(0, breakAt + 1));
+                remaining = remaining.slice(breakAt + 1);
+            }
+    
+            if (remaining) chunks.push(remaining);
+            return chunks;
+        }
+    
+        function machineTranslateToEnglish(text) {
+            var cached = readCachedEnglish(text);
+            if (cached) return Promise.resolve(cached);
+    
+            var chunks = splitTranslationText(text);
+            return Promise.all(chunks.map(translateEnglishChunk)).then(function (translatedChunks) {
+                if (translatedChunks.some(function (chunk) { return !chunk; })) return '';
+                var translated = translatedChunks.join('');
+                writeCachedEnglish(text, translated);
+                return translated;
+            }).catch(function () {
+                return '';
+            });
+        }
+    
+        function translateDocumentTitle() {
+            if (!originalDocumentTitle) originalDocumentTitle = document.title || '';
+            var next = translateText(originalDocumentTitle);
+    
+            if (document.title !== next) {
+                pauseObserverForDomWrite();
+                document.title = next;
+            }
+    
+            if (shouldMachineTranslate(next)) {
+                machineTranslateToEnglish(originalDocumentTitle).then(function (translated) {
+                    if (!translated || currentLang !== LANG_ENGLISH) return;
+                    pauseObserverForDomWrite();
+                    document.title = translated;
+                });
+            }
+        }
+    
+        function queueEnglishTextNodeTranslation(node, original) {
+            machineTranslateToEnglish(original).then(function (translated) {
+                if (!translated) return;
+                if (currentLang !== LANG_ENGLISH) return;
+                if (originalTexts.get(node) !== original) return;
+                pauseObserverForDomWrite();
+                node.nodeValue = translated;
+            });
+        }
+    
+        function queueEnglishAttributeTranslation(element, attr, original) {
+            machineTranslateToEnglish(original).then(function (translated) {
+                if (!translated) return;
+                if (currentLang !== LANG_ENGLISH) return;
+                var stored = originalAttrs.get(element);
+                if (!stored || stored[attr] !== original) return;
+                pauseObserverForDomWrite();
+                element.setAttribute(attr, translated);
+            });
+        }
+    
+        function translateText(text) {
+            if (currentLang === LANG_SIMPLIFIED) return toSimplified(text);
+            if (currentLang === LANG_ENGLISH) return toEnglish(text);
+            return text;
+        }
+    
+        function isSkippableElement(element) {
+            return Boolean(element && element.closest && element.closest('script, style, noscript, iframe, svg, path, [data-lang-toggle]'));
+        }
+    
+        function shouldSkipTextNode(node) {
+            return !node || !node.parentElement || isSkippableElement(node.parentElement) || Boolean(node.parentElement.closest('input, textarea'));
+        }
+    
+        function convertTextNode(node, resetOriginal) {
+            if (shouldSkipTextNode(node) || !node.nodeValue || !node.nodeValue.trim()) return;
+            if (resetOriginal || !originalTexts.has(node)) {
+                originalTexts.set(node, node.nodeValue);
+            }
+    
+            var original = originalTexts.get(node);
+            var next = translateText(original);
+            if (node.nodeValue !== next) node.nodeValue = next;
+            if (shouldMachineTranslate(next)) queueEnglishTextNodeTranslation(node, original);
+        }
+    
+        function convertAttributes(element, resetOriginal) {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE || isSkippableElement(element)) return;
+    
+            var attrs = ['alt', 'title', 'placeholder', 'aria-label'];
+            var stored = originalAttrs.get(element);
+            if (!stored) {
+                stored = {};
+                originalAttrs.set(element, stored);
+            }
+    
+            attrs.forEach(function (attr) {
+                if (!element.hasAttribute(attr)) return;
+                if (resetOriginal || !Object.prototype.hasOwnProperty.call(stored, attr)) {
+                    stored[attr] = element.getAttribute(attr);
+                }
+    
+                var original = stored[attr];
+                var next = translateText(original);
+                if (element.getAttribute(attr) !== next) element.setAttribute(attr, next);
+                if (shouldMachineTranslate(next)) queueEnglishAttributeTranslation(element, attr, original);
+            });
+        }
+    
+        function updateButtons() {
+            var label = '\u7e41';
+            var ariaLabel = '\u76ee\u524d\u70ba\u7e41\u9ad4\u4e2d\u6587\uff0c\u9ede\u64ca\u5207\u63db\u8a9e\u8a00';
+    
+            if (currentLang === LANG_SIMPLIFIED) {
+                label = '\u7b80';
+                ariaLabel = '\u76ee\u524d\u4e3a\u7b80\u4f53\u4e2d\u6587\uff0c\u70b9\u51fb\u5207\u6362\u8bed\u8a00';
+            } else if (currentLang === LANG_ENGLISH) {
+                label = 'EN';
+                ariaLabel = 'Current language is English. Click to switch language.';
+            }
+    
+            document.querySelectorAll('[data-lang-toggle]').forEach(function (button) {
+                button.textContent = label;
+                button.setAttribute('aria-label', ariaLabel);
+                button.setAttribute('title', ariaLabel);
+                button.setAttribute('data-current-lang', currentLang);
+            });
+        }
+    
+        function applyLanguage(root, resetOriginal) {
+            root = root || document.body;
+            if (!root) return;
+    
+            if (observerResumeTimer) clearTimeout(observerResumeTimer);
+            isApplying = true;
+            document.documentElement.lang = currentLang === LANG_SIMPLIFIED ? 'zh-CN' : (currentLang === LANG_ENGLISH ? 'en' : 'zh-TW');
+            translateDocumentTitle();
+    
+            if (root.nodeType === Node.TEXT_NODE) {
+                convertTextNode(root, resetOriginal);
+            } else if (root.nodeType === Node.ELEMENT_NODE || root.nodeType === Node.DOCUMENT_NODE) {
+                convertAttributes(root, resetOriginal);
+    
+                var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                    acceptNode: function (node) {
+                        return shouldSkipTextNode(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+                    }
+                });
+    
+                var node = walker.nextNode();
+                while (node) {
+                    convertTextNode(node, resetOriginal);
+                    node = walker.nextNode();
+                }
+    
+                if (root.querySelectorAll) {
+                    root.querySelectorAll('*').forEach(function (element) {
+                        convertAttributes(element, resetOriginal);
+                    });
+                }
+            }
+    
+            updateButtons();
+            observerResumeTimer = setTimeout(function () {
+                isApplying = false;
+            }, 0);
+        }
+    
+        function toggleLanguage() {
+            var currentIndex = LANGUAGE_ORDER.indexOf(currentLang);
+            currentLang = LANGUAGE_ORDER[(currentIndex + 1) % LANGUAGE_ORDER.length];
+            storage.set(currentLang);
+            applyLanguage(document.body, false);
+            requestAnimationFrame(function () {
+                applyLanguage(document.body, false);
+            });
+        }
+    
+        function initLanguageToggle() {
+            document.addEventListener('click', function (event) {
+                var button = event.target.closest && event.target.closest('[data-lang-toggle]');
+                if (!button) return;
+                event.preventDefault();
+                event.stopPropagation();
+                toggleLanguage();
+            });
+    
+            applyLanguage(document.body, false);
+    
+            var observer = new MutationObserver(function (mutations) {
+                if (isApplying) return;
+    
+                mutations.forEach(function (mutation) {
+                    if (mutation.type === 'characterData') {
+                        convertTextNode(mutation.target, true);
+                        return;
+                    }
+    
+                    mutation.addedNodes.forEach(function (node) {
+                        applyLanguage(node, false);
+                    });
+                });
+    
+                updateButtons();
+            });
+    
+            observer.observe(document.body, {
+                childList: true,
+                characterData: true,
+                subtree: true
+            });
+        }
+    
+        window.ctlApplyLanguage = function () {
+            applyLanguage(document.body, false);
+        };
+        window.ctlToggleLanguage = toggleLanguage;
+    
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLanguageToggle);
+        } else {
+            initLanguageToggle();
+        }
+    })();
+    
+    </script>
+    
+    <style>
+        
+        :root { 
+            --neon-lime: #5579e9; 
+            --royal-blue: #5579e9; 
+            --editor-blue: #5579e9;
+            --paper-white: #ffffff;
+            --ink-black: #111111;
+            --line-gray: rgba(0,0,0,0.14);
+            --serif-title: "Noto Serif TC", "Songti TC", "PMingLiU", "MingLiU", serif;
+            --deep-black: #050505; 
+            --dark-gray-glass: rgba(255, 255, 255, 0.98); 
+        }
+        
+        body { 
+            background-color: var(--paper-white); 
+            color: var(--ink-black); 
+            font-family: Arial, "Microsoft JhengHei", "PingFang TC", sans-serif; 
+            overflow-x: hidden; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        .bg-grid { background: var(--paper-white); }
+        .grain { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; opacity: 0.025; background-image: url("assets/images/img-1b6359b1d34b.png"); }
+        #flashlight { position: fixed; width: 500px; height: 500px; background: radial-gradient(circle, rgba(85,121,233,0.1) 0%, rgba(85,121,233,0) 70%); border-radius: 50%; pointer-events: none; z-index: 1; transform: translate(-50%, -50%); display: none; }
+        #cursor { position: fixed; width: 10px; height: 10px; background: var(--editor-blue); border-radius: 50%; pointer-events: none; z-index: 10000; mix-blend-mode: difference; display: none; }
+        @media (pointer: fine) { #flashlight, #cursor { display: block; } }
+        
+        .glass-nav,
+        .site-header-paper { background: var(--paper-white); color: var(--ink-black); border-bottom: 1px solid var(--line-gray); box-shadow: none; }
+        .site-header-paper a, .site-header-paper button { color: var(--ink-black); }
+        .site-header-paper a:hover, .site-header-paper button:hover { color: var(--editor-blue); }
+        .site-header-actions { white-space: nowrap; }
+        .site-header-actions a { white-space: nowrap; }
+        .site-brand-dot { background: var(--editor-blue); }
+        .site-outline-action { border: 1px solid var(--editor-blue); color: var(--editor-blue) !important; border-radius: 999px; padding: 0.375rem 1.25rem; }
+        .site-outline-action:hover { background: var(--editor-blue); color: white !important; }
+        .site-lang-button { border: 1px solid rgba(0,0,0,0.25); border-radius: 999px; padding: 0.375rem 0.75rem; }
+        .site-lang-button:hover { border-color: var(--editor-blue); color: var(--editor-blue); }
+        .site-header-search { width: 220px; position: relative; }
+        .site-header-search input { width: 100%; border: 1px solid rgba(0,0,0,0.18); color: var(--ink-black); padding: 0.48rem 2.45rem 0.48rem 0.85rem; font-size: 0.82rem; font-weight: 800; outline: none; }
+        .site-header-search input:focus { border-color: var(--editor-blue); }
+        .site-header-search button { position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%); color: rgba(0,0,0,0.45); }
+
+        .marquee-container { width: 100%; overflow: hidden; background-color: var(--editor-blue); color: white; display: flex; align-items: center; padding: 6px 0; }
+        .marquee-content { display: flex; white-space: nowrap; animation: scroll-marquee 25s linear infinite; }
+        .marquee-content span { padding-right: 50px; font-weight: 900; font-size: 0.85rem; letter-spacing: 0.1em; }
+        @keyframes scroll-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        main, #main-wrap { background: var(--paper-white); color: var(--ink-black); }
+        main .text-white, main .text-gray-200, main .text-gray-300, main .text-gray-400, #main-wrap .text-gray-200, #main-wrap .text-gray-300, #main-wrap .text-gray-400 { color: #555 !important; }
+        main .text-\[var\(--neon-lime\)\], #main-wrap .text-\[var\(--neon-lime\)\] { color: var(--editor-blue) !important; }
+        main .bg-\[var\(--neon-lime\)\], #main-wrap .bg-\[var\(--neon-lime\)\] { background-color: var(--editor-blue) !important; }
+        main .border-\[var\(--neon-lime\)\], #main-wrap .border-\[var\(--neon-lime\)\] { border-color: var(--editor-blue) !important; }
+        main h1, main h2, main h3, main h4, #main-wrap h1, #main-wrap h2, #main-wrap h3, #main-wrap h4 { color: var(--ink-black); }
+
+        #mobile-menu { color: white; }
+        #mobile-menu a, #mobile-menu button { color: inherit; }
+
+        .reveal { opacity: 0; transform: translateY(30px); }
+        .about-card,
+        .collab-card,
+        .glass-card { background: #fff; color: var(--ink-black); border: 1px solid var(--line-gray); box-shadow: none; overflow: hidden; transition: all 0.3s ease; }
+        .about-card:hover,
+        .collab-card:hover,
+        .glass-card:hover { border-color: var(--editor-blue); box-shadow: 0 10px 30px rgba(85,121,233,0.08); transform: translateY(-4px); }
+
+        .hero-image-frame { position: relative; background: #f4f4f4; padding: 10px; border: 1px solid var(--line-gray); box-shadow: none; transform: none; }
+        .tag { border: 1px solid rgba(85,121,233,0.3); padding: 6px 16px; border-radius: 99px; font-size: 13px; font-weight: 700; color: var(--editor-blue); transition: all 0.3s; background: rgba(85,121,233,0.06); }
+        .tag:hover { background: var(--editor-blue); color: white; transform: scale(1.05); }
+        .slogan-highlight { color: var(--editor-blue); opacity: 1; font-size: clamp(1.55rem, 7.2vw, 8rem); }
+        .stat-box { border-left: 2px solid var(--editor-blue); padding-left: 1.5rem; }
+        .avatar-glow { position: relative; }
+        .avatar-glow::after { content: ''; position: absolute; inset: -2px; background: var(--editor-blue); opacity: 0; transition: opacity 0.3s; z-index: -1; border-radius: 0.75rem; }
+        .collab-card:hover .avatar-glow::after { opacity: 0.18; }
+        .skeleton { background: linear-gradient(90deg, #eeeeee 25%, #f8f8f8 50%, #eeeeee 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .form-input { width: 100%; background: #fff; border: 1px solid var(--line-gray); padding: 1rem 1.25rem; border-radius: 0.5rem; color: var(--ink-black); font-size: 0.95rem; transition: all 0.3s ease; }
+        .form-input:focus { outline: none; border-color: var(--editor-blue); box-shadow: 0 0 0 3px rgba(85,121,233,0.12); }
+        .form-input::placeholder { color: rgba(0, 0, 0, 0.4); }
+        .btn-submit { background: var(--editor-blue); color: white; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; padding: 1rem 2rem; border-radius: 999px; transition: all 0.3s; border: 2px solid var(--editor-blue); width: 100%; }
+        .btn-submit:hover { background: white; color: var(--editor-blue); transform: translateY(-2px); box-shadow: 0 10px 20px rgba(85,121,233,0.15); }
+
+        .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 50; width: 50px; height: 50px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; transition: all 0.3s; opacity: 0; pointer-events: none; }
+        .group:hover .nav-btn { opacity: 1; pointer-events: auto; }
+        .nav-btn:hover { background: var(--editor-blue); color: white; border-color: var(--editor-blue); box-shadow: 0 0 20px rgba(85, 121, 233, 0.35); }
+        .article-content { font-size: 1.125rem; line-height: 2; opacity: 0.9; color: #333; }
+        .article-content p { margin-bottom: 1.5rem; line-height: 1.8; }
+        .article-content h3 { font-size: 1.5rem; font-weight: 900; color: var(--ink-black); margin-top: 2rem; margin-bottom: 1rem; border-left: 4px solid var(--editor-blue); padding-left: 1rem; }
+
+        footer.glass-nav { background: var(--paper-white); color: var(--ink-black); border-top: 1px solid var(--line-gray); }
+        footer .text-white { color: var(--ink-black) !important; }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+
+    <header class="fixed top-0 w-full z-[200]">
+        <nav class="px-6 py-4 md:px-10 md:py-5 flex justify-between items-center site-header-paper">
+            <a href="index.html" onclick="goHome(true)" class="flex items-center gap-3">
+                <img src="assets/images/img-4c7b5453dc8a.png" alt="兩岸直航CTL" class="h-12 md:h-14 w-auto object-contain">
+            </a>
+            <div class="hidden lg:block text-sm font-bold text-gray-600">深度評論 × 跨域觀察 × 兩岸視角</div>
+            <div class="site-header-actions hidden md:flex items-center gap-5 text-sm font-bold uppercase">
+                <div class="site-header-search">
+                    <input type="text" id="main-search-input" placeholder="搜尋專欄...">
+                    <button onclick="handleMainSearch()" aria-label="搜尋">
+                        <iconify-icon icon="lucide:search" class="text-xl"></iconify-icon>
+                    </button>
+                </div>
+                <a href="podcast.html" class="transition-all">PODCAST</a>
+                <a href="Collaborators.html" class="transition-all">合體者</a>
+                <a href="about.html" class="transition-all">關於我們</a>
+                <a href="contact.html" class="site-outline-action transition-all font-black">聯絡我們</a>
+                <button type="button" data-lang-toggle class="site-lang-button transition-all font-black">简</button>
+            </div>
+            <button class="md:hidden text-4xl" onclick="toggleMenu()"><iconify-icon icon="lucide:menu"></iconify-icon></button>
+        </nav>
+        <div class="marquee-container">
+            <div class="marquee-content">
+                <span>兩岸新聞網專注深度評論兩岸時事，由獨立學者以跨域視角還原真實脈絡 | 拆解隔閡，思想直航；兩岸合體，共譜新章。帶您消弭偏見，重構多維度的思考骨架。</span>
+                <span>【快訊】兩岸關係新突破，經貿論壇於上海登場。／【快訊】台積電法說會優於預期，帶動台股科技板塊全面翻紅。</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="mobile-menu" class="fixed top-0 right-0 w-full h-full bg-[var(--deep-black)] z-[250] flex flex-col items-center justify-center translate-x-full transition-transform duration-500">
+        <button class="absolute top-6 right-6 text-4xl" onclick="toggleMenu()"><iconify-icon icon="lucide:x"></iconify-icon></button>
+        <div class="flex flex-col gap-8 text-center text-3xl font-black italic items-center">
+            <a href="index.html" onclick="toggleMenu(); goHome(true)" class="hover:text-[var(--neon-lime)] transition-colors">首頁HOME</a>
+            <a href="podcast.html" class="hover:text-[var(--neon-lime)] transition-colors">PODCAST</a>
+            <a href="Collaborators.html" class="hover:text-[var(--neon-lime)] transition-colors">合體者</a>
+            <a href="about.html" class="hover:text-[var(--neon-lime)] transition-colors">ABOUT</a>
+            <a href="contact.html" class="text-[var(--neon-lime)] border-2 border-[var(--neon-lime)] px-10 py-3 rounded-full hover:bg-[var(--neon-lime)] hover:text-black transition-all font-black not-italic mt-2 text-2xl tracking-[0.1em]">聯絡我們</a>
+            <button type="button" data-lang-toggle class="text-[var(--neon-lime)] border-2 border-[var(--neon-lime)] w-20 h-20 rounded-full hover:bg-[var(--neon-lime)] hover:text-black transition-all font-black not-italic text-2xl">简</button>
+        </div>
+    </div>
+
+    <main class="pt-48 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center mb-20">
+                <div class="lg:col-span-6 reveal">
+                    <div class="inline-block bg-[var(--neon-lime)] text-black px-4 py-1 mb-8 font-black skew-x-[-12deg]">
+                        <span class="inline-block skew-x-[12deg]">INDIPENDENT OBSERVERS</span>
+                    </div>
+                    <img src="assets/images/img-4c7b5453dc8a.png" alt="Beyond The Noise" class="mb-10 w-full max-w-xl">
+                    <p class="text-xl font-bold leading-relaxed text-[var(--neon-lime)]">
+                        減少衝突及爭議，是我們匯聚於此的唯一目的。<br><br>我們是來自各個領域的獨立學者，致力於透過深度專案與專業的兩岸學術評論，在吵雜的時代中還原真實的脈絡。
+                    </p>
+                </div>
+                <div class="lg:col-span-6 reveal">
+                    <div class="hero-image-frame">
+                        <img src="assets/images/img-520ab38f34fc.png" alt="REUNION Observation" class="w-full grayscale hover:grayscale-0 transition-all duration-1000">
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+                <div class="about-card p-10 rounded-[2rem] reveal">
+                    <div class="w-12 h-12 bg-[var(--neon-lime)]/10 rounded-xl flex items-center justify-center mb-6 text-[var(--neon-lime)]">
+                        <iconify-icon icon="mingcute:group-line" class="text-3xl"></iconify-icon>
+                    </div>
+                    <h3 class="text-2xl font-black italic mb-6 text-[var(--neon-lime)]">獨立團體</h3>
+                    <p class="text-gray-300 leading-relaxed text-sm font-medium">不隸屬於任何媒體集團。我們連結各方獨立研究者，只對事實與邏輯負責。</p>
+                </div>
+                <div class="about-card p-10 rounded-[2rem] reveal" style="transition-delay: 0.1s;">
+                    <div class="w-12 h-12 bg-[var(--neon-lime)]/10 rounded-xl flex items-center justify-center mb-6 text-[var(--neon-lime)]">
+                        <iconify-icon icon="mingcute:document-3-line" class="text-3xl"></iconify-icon>
+                    </div>
+                    <h3 class="text-2xl font-black italic mb-6 text-[var(--neon-lime)]">專題報導</h3>
+                    <p class="text-gray-300 leading-relaxed text-sm font-medium">拒絕即時熱點的消耗。我們專注於撰寫具備學術價值的深度專題文章。</p>
+                </div>
+                <div class="about-card p-10 rounded-[2rem] reveal" style="transition-delay: 0.2s;">
+                    <div class="w-12 h-12 bg-[var(--neon-lime)]/10 rounded-xl flex items-center justify-center mb-6 text-[var(--neon-lime)]">
+                        <iconify-icon icon="mingcute:flask-line" class="text-3xl"></iconify-icon>
+                    </div>
+                    <h3 class="text-2xl font-black italic mb-6 text-[var(--neon-lime)]">跨領域合體</h3>
+                    <p class="text-gray-300 leading-relaxed text-sm font-medium">連結兩岸政策、軍事、經濟背景。透過學科「合體」，讓議題觀察具備多維度視角。</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-20">
+                <div class="reveal">
+                    <h2 class="text-4xl font-black italic mb-8 uppercase tracking-tighter">Mission / <span class="text-[var(--neon-lime)] text-2xl">我們的核心任務</span></h2>
+                    <div class="space-y-8">
+                        <div class="stat-box">
+                            <h4 class="text-xl font-bold mb-2">01. 建立非對稱的觀察節點</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">利用 OSINT 開放情報挖掘隱藏趨勢，建立嚴謹的基礎資料庫。</p>
+                        </div>
+                        <div class="stat-box">
+                            <h4 class="text-xl font-bold mb-2">02. 跨國界的協同作業</h4>
+                            <p class="text-gray-400 text-sm leading-relaxed">成員分佈於不同區域，透過數位協作平台彙整全球視野報導。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reveal bg-white p-10 rounded-[0.5rem] border border-black/10 shadow-none">
+                    <h2 class="text-3xl font-black italic mb-6 uppercase tracking-tighter">Fields / <span class="text-[var(--neon-lime)]">專精範疇</span></h2>
+                    <div class="flex flex-wrap gap-3 mb-8">
+                        <span class="tag">區域安全 Security</span>
+                        <span class="tag">地緣政治 Geopolitics</span>
+                        <span class="tag">軍事科技 Military Tech</span>
+                        <span class="tag">數位轉型 Digitalization</span>
+                        <span class="tag">金融觀察 Finance</span>
+                    </div>
+                    <blockquote class="italic text-gray-300 border-l-4 border-[var(--neon-lime)] pl-6 text-sm">
+                        「我們不生產快餐資訊，我們重構思考的骨架。」
+                    </blockquote>
+                </div>
+            </div>
+
+            <div class="text-center reveal pb-20">
+                <h2 class="font-black italic slogan-highlight leading-none">拆解隔閡，思想直航；<br>兩岸合體，共譜新章。</h2>
+                <p class="text-[var(--neon-lime)] font-black tracking-[1em] uppercase text-xs mt-6">消融疆界 · 重構視界 · 合體者計劃</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="glass-nav py-12 px-6 border-t border-white/10 text-center">
+        <span class="text-4xl font-black tracking-tighter italic uppercase text-white">兩岸新聞網 | China-Taiwan Link</span>
+        <p class="opacity-40 text-[10px] mt-4 uppercase tracking-[0.5em] italic">Independent Media Collective / Since 2026</p>
+    </footer>
+
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+        
+        function toggleMenu() { 
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('translate-x-full');
+        }
+
+        function goHome() {
+            window.location.href = 'index.html';
+        }
+
+        function handleMainSearch() {
+            const input = document.getElementById('main-search-input');
+            const query = input ? input.value.trim() : '';
+            window.location.href = query ? 'index.html?search=' + encodeURIComponent(query) : 'index.html';
+        }
+
+
+        window.onload = () => {
+            gsap.utils.toArray('.reveal').forEach((el) => {
+                gsap.to(el, {
+                    scrollTrigger: {
+                        trigger: el,
+                        start: "top 95%",
+                        toggleActions: "play none none none"
+                    },
+                    opacity: 1,
+                    y: 0,
+                    duration: 1,
+                    ease: "power4.out"
+                });
+            });
+        };
+    </script>
+</body>
+</html>

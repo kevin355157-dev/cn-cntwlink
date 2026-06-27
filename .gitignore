@@ -1,0 +1,9 @@
+MP3/
+tools/
+supabase_import/
+資料表表格/
+*.xlsx
+*.xls
+*.csv
+*.sql
+*.log

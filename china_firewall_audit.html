@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>中國友善化改造後檢查</title>
+  <style>
+    body { margin: 0; font-family: Arial, "Microsoft JhengHei", sans-serif; background: #f6f8fb; color: #17202a; line-height: 1.6; }
+    main { max-width: 980px; margin: 0 auto; padding: 36px 22px; }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    p { color: #5d6d7e; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0; }
+    .card { background: #fff; border: 1px solid #d8dee6; border-radius: 8px; padding: 18px; }
+    .card strong { display: block; font-size: 32px; line-height: 1; margin-bottom: 8px; color: #21618c; }
+    ul { background: #fff; border: 1px solid #d8dee6; border-radius: 8px; padding: 20px 24px 20px 42px; }
+    code { font-family: Consolas, monospace; font-size: 14px; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>中國友善化改造後檢查</h1>
+    <p>這份報表反映目前改造後的站內結構。主要頁面已改為本地資源與同站 API 優先。</p>
+
+    <div class="grid">
+      <div class="card"><strong>0</strong><span>主要 HTML 高風險外部資源</span></div>
+      <div class="card"><strong>119</strong><span>本地文章資料</span></div>
+      <div class="card"><strong>279</strong><span>已本地化遠端圖片</span></div>
+    </div>
+
+    <ul>
+      <li>主要頁面改用 <code>assets/vendor/</code> 內的本地 JS。</li>
+      <li>圖片改用 <code>assets/images/</code>；下載失敗者使用 <code>placeholder.svg</code>。</li>
+      <li>文章、Podcast、合體者資料改用 <code>data/</code> JSON fallback。</li>
+      <li>前端不再直接連資料庫服務，改成同站 <code>/api/...</code> 優先。</li>
+      <li>聯絡表單改送 <code>/api/contact</code>，等待後端接上資料庫。</li>
+      <li>Podcast 外部 iframe 已移除，避免播放器卡住頁面。</li>
+    </ul>
+  </main>
+</body>
+</html>
